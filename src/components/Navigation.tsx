@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, ShoppingCart, Calculator, Brain, Activity, User, Settings, Blocks } from 'lucide-react';
+import { BarChart3, ShoppingCart, Calculator, Brain, Activity, User, Settings, Blocks, Lightbulb } from 'lucide-react';
 
 interface Props {
   activeTab: string;
@@ -10,7 +10,8 @@ const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
   { id: 'calculator', label: 'Calculator', icon: Calculator },
   { id: 'marketplace', label: 'Marketplace', icon: ShoppingCart },
-  { id: 'recommendations', label: 'AI Insights', icon: Brain },
+  { id: 'recommendations', label: 'AI Recommendations', icon: Brain },
+  { id: 'ai-insights', label: 'AI Insights', icon: Lightbulb },
   { id: 'blockchain', label: 'Blockchain', icon: Blocks },
   { id: 'analytics', label: 'Analytics', icon: Activity },
   { id: 'profile', label: 'Profile', icon: User }

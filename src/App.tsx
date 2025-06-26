@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import CarbonCalculator from './components/CarbonCalculator';
 import Marketplace from './components/Marketplace';
 import AIRecommendations from './components/AIRecommendations';
+import AIInsights from './components/AIInsights';
 import Analytics from './components/Analytics';
 import Profile from './components/Profile';
 import BlockchainDashboard from './components/BlockchainDashboard';
@@ -61,6 +62,8 @@ function App() {
         return <Marketplace />;
       case 'recommendations':
         return <AIRecommendations />;
+      case 'ai-insights':
+        return <AIInsights />;
       case 'blockchain':
         return config.features.blockchainEnabled ? <BlockchainDashboard /> : <Dashboard portfolio={mockPortfolio} />;
       case 'analytics':
