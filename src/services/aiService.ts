@@ -72,7 +72,7 @@ class AIService {
         max_tokens: 1500
       });
 
-      return this.parseRecommendations(response.choices[0].message.content);
+      return this.parseRecommendations(response.choices[0].message.content, userProfile);
     } catch (error) {
       console.error('AI recommendation generation failed:', error);
       return this.getFallbackRecommendations(userProfile);
@@ -258,23 +258,65 @@ class AIService {
   // Private helper methods
   private async callAI(payload: any): Promise<any> {
     if (!this.apiKey) {
-      throw new AppError('AI API key not configured', 500);
+      throw new AppError('AI API key not configured. Please set VITE_OPENAI_API_KEY in your .env file.', 500);
     }
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      throw new AppError(`AI API error: ${response.statusText}`, response.status);
+    if (!this.apiKey.startsWith('sk-')) {
+      throw new AppError('Invalid OpenAI API key format. API key should start with "sk-".', 500);
     }
 
-    return response.json();
+    try {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        let errorMessage = `AI API error (${response.status}): ${response.statusText}`;
+        
+        try {
+          const errorData = await response.json();
+          if (errorData.error && errorData.error.message) {
+            errorMessage = `AI API error: ${errorData.error.message}`;
+          }
+        } catch (parseError) {
+          // If we can't parse the error response, use the status text
+        }
+
+        if (response.status === 401) {
+          errorMessage = 'Invalid API key. Please check your VITE_OPENAI_API_KEY in the .env file.';
+        } else if (response.status === 429) {
+          errorMessage = 'API rate limit exceeded. Please try again later.';
+        } else if (response.status === 403) {
+          errorMessage = 'API access forbidden. Please check your API key permissions.';
+        }
+
+        throw new AppError(errorMessage, response.status);
+      }
+
+      const data = await response.json();
+      
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new AppError('Invalid response format from AI API', 500);
+      }
+
+      return data;
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      
+      // Network or other errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new AppError('Network error: Unable to connect to AI service. Please check your internet connection.', 500);
+      }
+      
+      throw new AppError(`AI service error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
+    }
   }
 
   private buildRecommendationPrompt(userProfile: any): string {
@@ -302,7 +344,7 @@ class AIService {
     `;
   }
 
-  private parseRecommendations(aiResponse: string): AIRecommendation[] {
+  private parseRecommendations(aiResponse: string, userProfile: any): AIRecommendation[] {
     try {
       // Extract JSON from AI response
       const jsonMatch = aiResponse.match(/\[[\s\S]*\]/);
@@ -391,15 +433,58 @@ class AIService {
         id: 'fallback-1',
         type: 'reduction',
         title: 'Switch to LED Lighting',
-        description: 'Replace incandescent bulbs with LED alternatives',
+        description: 'Replace incandescent bulbs with LED alternatives to reduce energy consumption',
         impact: 2.4,
         confidence: 90,
         category: 'Energy Efficiency',
         rewardPotential: 24,
-        actionSteps: ['Audit current lighting', 'Purchase LED bulbs', 'Install replacements'],
+        actionSteps: [
+          'Audit current lighting throughout your home',
+          'Purchase ENERGY STAR certified LED bulbs',
+          'Install LED replacements in high-use areas first',
+          'Monitor energy usage reduction'
+        ],
         estimatedCost: 150,
         timeframe: '1 week',
         priority: 'medium'
+      },
+      {
+        id: 'fallback-2',
+        type: 'behavioral',
+        title: 'Optimize Thermostat Settings',
+        description: 'Adjust heating and cooling settings to reduce energy consumption',
+        impact: 3.2,
+        confidence: 85,
+        category: 'Home Energy',
+        rewardPotential: 32,
+        actionSteps: [
+          'Set thermostat 2-3 degrees lower in winter',
+          'Set thermostat 2-3 degrees higher in summer',
+          'Use programmable schedule for when away',
+          'Install smart thermostat for better control'
+        ],
+        estimatedCost: 200,
+        timeframe: '1 day',
+        priority: 'high'
+      },
+      {
+        id: 'fallback-3',
+        type: 'reduction',
+        title: 'Reduce Car Usage',
+        description: 'Use alternative transportation methods to reduce carbon emissions',
+        impact: 4.8,
+        confidence: 80,
+        category: 'Transportation',
+        rewardPotential: 48,
+        actionSteps: [
+          'Plan combined trips to reduce total driving',
+          'Use public transportation for commuting',
+          'Walk or bike for short distances',
+          'Consider carpooling for regular trips'
+        ],
+        estimatedCost: 0,
+        timeframe: '2 weeks',
+        priority: 'high'
       }
     ];
   }
