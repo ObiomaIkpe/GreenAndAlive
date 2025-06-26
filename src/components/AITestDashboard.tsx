@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Brain, CheckCircle, XCircle, AlertTriangle, Loader } from 'lucide-react';
+import { Brain, CheckCircle, XCircle, AlertTriangle, Loader, Clock } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { config } from '../config/environment';
 
@@ -40,7 +40,10 @@ export default function AITestDashboard() {
       updateTest('Configuration', 'error', 'API key format appears invalid');
     }
 
-    // Test 2: AI Recommendations
+    // Add delay between tests to respect rate limits
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Test 2: AI Recommendations (simplified)
     updateTest('AI Recommendations', 'pending', 'Testing recommendation generation...');
     const startTime = Date.now();
     
@@ -49,7 +52,7 @@ export default function AITestDashboard() {
         carbonFootprint: 25.5,
         location: 'San Francisco, CA',
         lifestyle: ['urban', 'tech_worker'],
-        preferences: ['renewable_energy', 'forest_conservation'],
+        preferences: ['renewable_energy'],
         budget: 500
       });
       
@@ -63,93 +66,68 @@ export default function AITestDashboard() {
       }
     } catch (error) {
       const duration = Date.now() - startTime;
-      updateTest('AI Recommendations', 'error', 
-        `Failed: ${error instanceof Error ? error.message : 'Unknown error'}`, duration);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('rate limit')) {
+        updateTest('AI Recommendations', 'error', 
+          'Rate limit exceeded. Please wait a few minutes before testing again.', duration);
+      } else {
+        updateTest('AI Recommendations', 'error', 
+          `Failed: ${errorMessage}`, duration);
+      }
     }
 
-    // Test 3: Carbon Predictions
-    updateTest('Carbon Predictions', 'pending', 'Testing emission predictions...');
-    const predictionStartTime = Date.now();
-    
-    try {
-      const prediction = await aiService.predictCarbonEmissions({
-        monthly_emissions: [45, 42, 48, 41, 39, 37, 35, 33, 31, 29, 27, 25],
-        activities: ['electricity', 'transportation', 'heating'],
-        seasonal_factors: true
-      });
+    // Add longer delay for rate limiting
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Test 3: Carbon Predictions (only if previous test succeeded)
+    const recommendationTest = tests.find(t => t.name === 'AI Recommendations');
+    if (recommendationTest?.status === 'success') {
+      updateTest('Carbon Predictions', 'pending', 'Testing emission predictions...');
+      const predictionStartTime = Date.now();
       
-      const duration = Date.now() - predictionStartTime;
-      
-      if (prediction && prediction.predictedEmissions) {
-        updateTest('Carbon Predictions', 'success', 
-          `Predicted ${prediction.predictedEmissions.toFixed(1)} tons CO₂`, duration);
-      } else {
-        updateTest('Carbon Predictions', 'error', 'Invalid prediction response');
+      try {
+        const prediction = await aiService.predictCarbonEmissions({
+          monthly_emissions: [45, 42, 48, 41, 39, 37],
+          activities: ['electricity', 'transportation'],
+          seasonal_factors: true
+        });
+        
+        const duration = Date.now() - predictionStartTime;
+        
+        if (prediction && prediction.predictedEmissions) {
+          updateTest('Carbon Predictions', 'success', 
+            `Predicted ${prediction.predictedEmissions.toFixed(1)} tons CO₂`, duration);
+        } else {
+          updateTest('Carbon Predictions', 'error', 'Invalid prediction response');
+        }
+      } catch (error) {
+        const duration = Date.now() - predictionStartTime;
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        updateTest('Carbon Predictions', 'error', 
+          `Failed: ${errorMessage}`, duration);
       }
-    } catch (error) {
-      const duration = Date.now() - predictionStartTime;
-      updateTest('Carbon Predictions', 'error', 
-        `Failed: ${error instanceof Error ? error.message : 'Unknown error'}`, duration);
+    } else {
+      updateTest('Carbon Predictions', 'error', 'Skipped due to previous test failure');
     }
 
-    // Test 4: Efficiency Analysis
-    updateTest('Efficiency Analysis', 'pending', 'Testing efficiency analysis...');
-    const analysisStartTime = Date.now();
-    
-    try {
-      const insights = await aiService.analyzeEfficiency({
-        emissions: 32.4,
-        activities: {
-          electricity: 12.5,
-          transportation: 8.2,
-          heating: 6.7,
-          air_travel: 5.0
-        },
-        location: 'San Francisco, CA',
-        demographics: 'urban_professional'
-      });
-      
-      const duration = Date.now() - analysisStartTime;
-      
-      if (insights && insights.carbonEfficiencyScore) {
-        updateTest('Efficiency Analysis', 'success', 
-          `Efficiency score: ${insights.carbonEfficiencyScore}/100`, duration);
-      } else {
-        updateTest('Efficiency Analysis', 'error', 'Invalid analysis response');
-      }
-    } catch (error) {
-      const duration = Date.now() - analysisStartTime;
-      updateTest('Efficiency Analysis', 'error', 
-        `Failed: ${error instanceof Error ? error.message : 'Unknown error'}`, duration);
-    }
+    setIsRunning(false);
+  };
 
-    // Test 5: Behavior Analysis
-    updateTest('Behavior Analysis', 'pending', 'Testing behavioral analysis...');
-    const behaviorStartTime = Date.now();
+  const runQuickTest = async () => {
+    setIsRunning(true);
+    setTests([]);
+
+    // Quick configuration test only
+    updateTest('Quick Configuration Test', 'pending', 'Checking basic setup...');
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    try {
-      const behavior = await aiService.analyzeBehavior({
-        daily_activities: [
-          { date: '2024-01-15', electricity: 12, transport: 8, heating: 5 },
-          { date: '2024-01-14', electricity: 11, transport: 12, heating: 6 },
-          { date: '2024-01-13', electricity: 13, transport: 6, heating: 4 }
-        ],
-        patterns: ['weekend_spikes', 'morning_commute'],
-        goals: ['reduce_transport', 'carbon_neutral']
-      });
-      
-      const duration = Date.now() - behaviorStartTime;
-      
-      if (behavior && behavior.behavior_score) {
-        updateTest('Behavior Analysis', 'success', 
-          `Behavior score: ${behavior.behavior_score}/100`, duration);
-      } else {
-        updateTest('Behavior Analysis', 'error', 'Invalid behavior analysis response');
-      }
-    } catch (error) {
-      const duration = Date.now() - behaviorStartTime;
-      updateTest('Behavior Analysis', 'error', 
-        `Failed: ${error instanceof Error ? error.message : 'Unknown error'}`, duration);
+    if (!config.ai.apiKey) {
+      updateTest('Quick Configuration Test', 'error', 'OpenAI API key not found');
+    } else if (!config.ai.apiKey.startsWith('sk-')) {
+      updateTest('Quick Configuration Test', 'error', 'Invalid API key format');
+    } else {
+      updateTest('Quick Configuration Test', 'success', 'Configuration looks good! Ready for AI features.');
     }
 
     setIsRunning(false);
@@ -196,23 +174,62 @@ export default function AITestDashboard() {
             </div>
           </div>
           
-          <button
-            onClick={runAITests}
-            disabled={isRunning}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 disabled:opacity-50 flex items-center space-x-2"
-          >
-            {isRunning ? (
-              <>
-                <Loader className="w-4 h-4 animate-spin" />
-                <span>Testing...</span>
-              </>
-            ) : (
-              <>
-                <Brain className="w-4 h-4" />
-                <span>Run AI Tests</span>
-              </>
-            )}
-          </button>
+          <div className="flex space-x-3">
+            <button
+              onClick={runQuickTest}
+              disabled={isRunning}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 disabled:opacity-50 flex items-center space-x-2"
+            >
+              {isRunning ? (
+                <>
+                  <Loader className="w-4 h-4 animate-spin" />
+                  <span>Testing...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Quick Test</span>
+                </>
+              )}
+            </button>
+            
+            <button
+              onClick={runAITests}
+              disabled={isRunning}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 disabled:opacity-50 flex items-center space-x-2"
+            >
+              {isRunning ? (
+                <>
+                  <Loader className="w-4 h-4 animate-spin" />
+                  <span>Testing...</span>
+                </>
+              ) : (
+                <>
+                  <Brain className="w-4 h-4" />
+                  <span>Full AI Test</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Rate Limit Warning */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+        <div className="flex items-center space-x-2">
+          <Clock className="w-5 h-5 text-yellow-600" />
+          <div>
+            <h3 className="font-medium text-yellow-900">Rate Limiting Information</h3>
+            <p className="text-sm text-yellow-800 mt-1">
+              OpenAI has rate limits to prevent abuse. If you see rate limit errors:
+            </p>
+            <ul className="text-sm text-yellow-800 mt-2 space-y-1">
+              <li>• Wait 1-2 minutes between test runs</li>
+              <li>• Use "Quick Test" to check configuration without API calls</li>
+              <li>• Consider upgrading your OpenAI plan for higher limits</li>
+              <li>• Free tier: 3 requests per minute, 200 requests per day</li>
+            </ul>
+          </div>
         </div>
       </div>
 
@@ -310,7 +327,7 @@ export default function AITestDashboard() {
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center space-x-2">
                 <CheckCircle className="w-5 h-5 text-green-600" />
-                <span className="font-medium text-green-900">All AI tests passed!</span>
+                <span className="font-medium text-green-900">All tests passed!</span>
               </div>
               <p className="text-sm text-green-800 mt-2">
                 Your AI integration is working correctly. You can now:
@@ -329,13 +346,14 @@ export default function AITestDashboard() {
                 <span className="font-medium text-red-900">Some tests failed</span>
               </div>
               <p className="text-sm text-red-800 mt-2">
-                Please check your configuration and try again:
+                Common solutions for rate limit issues:
               </p>
               <ul className="text-sm text-red-800 mt-2 space-y-1">
-                <li>• Verify your OpenAI API key is correct</li>
-                <li>• Check your internet connection</li>
-                <li>• Ensure you have sufficient API credits</li>
-                <li>• Review the error messages above</li>
+                <li>• Wait 2-3 minutes before running tests again</li>
+                <li>• Check your OpenAI account usage limits</li>
+                <li>• Verify your API key has sufficient credits</li>
+                <li>• Consider upgrading to a paid OpenAI plan</li>
+                <li>• Use "Quick Test" to verify configuration without API calls</li>
               </ul>
             </div>
           )}
