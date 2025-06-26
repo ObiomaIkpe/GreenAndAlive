@@ -7,6 +7,9 @@ import Marketplace from './components/Marketplace';
 import AIRecommendations from './components/AIRecommendations';
 import AIInsights from './components/AIInsights';
 import AITestDashboard from './components/AITestDashboard';
+import WasteDisposalTracker from './components/WasteDisposalTracker';
+import CorporateCompliance from './components/CorporateCompliance';
+import VerificationDashboard from './components/VerificationDashboard';
 import Analytics from './components/Analytics';
 import Profile from './components/Profile';
 import BlockchainDashboard from './components/BlockchainDashboard';
@@ -67,6 +70,12 @@ function App() {
         return <AIInsights />;
       case 'ai-test':
         return <AITestDashboard />;
+      case 'waste-tracker':
+        return <WasteDisposalTracker />;
+      case 'corporate':
+        return <CorporateCompliance />;
+      case 'verification':
+        return <VerificationDashboard />;
       case 'blockchain':
         return config.features.blockchainEnabled ? <BlockchainDashboard /> : <Dashboard portfolio={mockPortfolio} />;
       case 'analytics':

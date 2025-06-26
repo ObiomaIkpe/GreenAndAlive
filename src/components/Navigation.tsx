@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, ShoppingCart, Calculator, Brain, Activity, User, Settings, Blocks, Lightbulb, TestTube } from 'lucide-react';
+import { BarChart3, ShoppingCart, Calculator, Brain, Activity, User, Settings, Blocks, Lightbulb, TestTube, Recycle, Building2, Shield } from 'lucide-react';
 
 interface Props {
   activeTab: string;
@@ -13,6 +13,9 @@ const navItems = [
   { id: 'recommendations', label: 'AI Recommendations', icon: Brain },
   { id: 'ai-insights', label: 'AI Insights', icon: Lightbulb },
   { id: 'ai-test', label: 'AI Test', icon: TestTube },
+  { id: 'waste-tracker', label: 'Waste Tracker', icon: Recycle },
+  { id: 'corporate', label: 'Corporate', icon: Building2 },
+  { id: 'verification', label: 'Verification', icon: Shield },
   { id: 'blockchain', label: 'Blockchain', icon: Blocks },
   { id: 'analytics', label: 'Analytics', icon: Activity },
   { id: 'profile', label: 'Profile', icon: User }
@@ -42,7 +45,7 @@ export default function Navigation({ activeTab, setActiveTab }: Props) {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg font-medium text-xs transition-all duration-200 ${
                     activeTab === item.id
                       ? 'bg-emerald-100 text-emerald-700 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -70,7 +73,7 @@ export default function Navigation({ activeTab, setActiveTab }: Props) {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all duration-200 ${
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg font-medium text-xs whitespace-nowrap transition-all duration-200 ${
                     activeTab === item.id
                       ? 'bg-emerald-100 text-emerald-700 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
