@@ -7,4 +7,28 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  build: {
+    // Production optimizations
+    minify: 'terser',
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          blockchain: ['ethers', 'web3'],
+          icons: ['lucide-react']
+        }
+      }
+    },
+    // Increase chunk size warning limit
+    chunkSizeWarningLimit: 1000
+  },
+  server: {
+    port: 3000,
+    host: true
+  },
+  preview: {
+    port: 4173,
+    host: true
+  }
 });
