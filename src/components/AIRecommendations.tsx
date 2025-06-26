@@ -1,5 +1,5 @@
 import React from 'react';
-import { Brain, TrendingUp, Lightbulb, Target } from 'lucide-react';
+import { Brain, TrendingUp, Lightbulb, Target, Coins } from 'lucide-react';
 import { AIRecommendation } from '../types';
 
 const mockRecommendations: AIRecommendation[] = [
@@ -10,7 +10,8 @@ const mockRecommendations: AIRecommendation[] = [
     description: 'Replace remaining incandescent bulbs with LED alternatives to reduce energy consumption by 15%',
     impact: 2.4,
     confidence: 92,
-    category: 'Energy Efficiency'
+    category: 'Energy Efficiency',
+    rewardPotential: 25
   },
   {
     id: '2',
@@ -19,7 +20,8 @@ const mockRecommendations: AIRecommendation[] = [
     description: 'Amazon rainforest credits show 23% price increase trend. Consider purchasing now.',
     impact: 8.5,
     confidence: 87,
-    category: 'Market Opportunity'
+    category: 'Market Opportunity',
+    rewardPotential: 85
   },
   {
     id: '3',
@@ -28,7 +30,8 @@ const mockRecommendations: AIRecommendation[] = [
     description: 'AI analysis shows potential 18% heating cost reduction with smart temperature control',
     impact: 3.2,
     confidence: 89,
-    category: 'Home Automation'
+    category: 'Home Automation',
+    rewardPotential: 40
   },
   {
     id: '4',
@@ -37,7 +40,8 @@ const mockRecommendations: AIRecommendation[] = [
     description: 'Local utility offers 100% renewable energy at competitive rates in your area',
     impact: 12.8,
     confidence: 95,
-    category: 'Energy Source'
+    category: 'Energy Source',
+    rewardPotential: 120
   }
 ];
 
@@ -63,7 +67,7 @@ export default function AIRecommendations() {
           </div>
           <div>
             <h2 className="text-xl font-semibold text-gray-900">AI-Powered Recommendations</h2>
-            <p className="text-sm text-gray-600">Personalized insights to optimize your carbon strategy</p>
+            <p className="text-sm text-gray-600">Personalized insights to optimize your carbon strategy with blockchain rewards</p>
           </div>
         </div>
       </div>
@@ -94,7 +98,7 @@ export default function AIRecommendations() {
 
               <p className="text-gray-700 mb-3">{rec.description}</p>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-600">Confidence:</span>
@@ -108,6 +112,19 @@ export default function AIRecommendations() {
                       <span className="text-sm font-medium text-gray-900">{rec.confidence}%</span>
                     </div>
                   </div>
+                </div>
+                
+                {rec.rewardPotential && (
+                  <div className="flex items-center space-x-2 bg-yellow-50 px-3 py-1 rounded-full">
+                    <Coins className="w-4 h-4 text-yellow-600" />
+                    <span className="text-sm font-medium text-yellow-800">+{rec.rewardPotential} CARB</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-gray-500">
+                  Smart contract will automatically reward completion
                 </div>
                 <div className="flex space-x-2">
                   <button className="px-3 py-1 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200">
@@ -127,7 +144,7 @@ export default function AIRecommendations() {
             <Brain className="w-5 h-5 text-indigo-600" />
             <div>
               <h4 className="font-medium text-gray-900">AI Learning Progress</h4>
-              <p className="text-sm text-gray-600">Your AI assistant becomes more accurate with each interaction</p>
+              <p className="text-sm text-gray-600">Your AI assistant becomes more accurate with each interaction and blockchain verification</p>
             </div>
           </div>
           <div className="mt-3">

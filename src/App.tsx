@@ -6,6 +6,7 @@ import Marketplace from './components/Marketplace';
 import AIRecommendations from './components/AIRecommendations';
 import Analytics from './components/Analytics';
 import Profile from './components/Profile';
+import BlockchainDashboard from './components/BlockchainDashboard';
 import { UserPortfolio } from './types';
 
 const mockPortfolio: UserPortfolio = {
@@ -18,7 +19,11 @@ const mockPortfolio: UserPortfolio = {
     'Carbon Neutral Champion - Achieved 3 consecutive months',
     'Forest Protector - 100+ conservation credits purchased',
     'Efficiency Expert - 30% emission reduction achieved'
-  ]
+  ],
+  walletAddress: '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6',
+  tokenBalance: 1247,
+  stakingRewards: 156.5,
+  nftBadges: []
 };
 
 function App() {
@@ -34,6 +39,8 @@ function App() {
         return <Marketplace />;
       case 'recommendations':
         return <AIRecommendations />;
+      case 'blockchain':
+        return <BlockchainDashboard />;
       case 'analytics':
         return <Analytics />;
       case 'profile':
