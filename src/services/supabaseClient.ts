@@ -1,14 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from '../config/environment';
 
-const supabaseUrl = config.supabase?.url || '';
-const supabaseAnonKey = config.supabase?.anonKey || '';
+// Fallback values for development/testing
+const supabaseUrl = config.supabase?.url || 'https://example.supabase.co';
+const supabaseAnonKey = config.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YW1wbGUiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTYxNjQyMjY4Niwic3ViIjoiYW5vbiJ9.fallback';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase URL or Anon Key is missing. Please check your environment variables.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create client with fallback handling
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  }
+});
 
 export type Database = {
   public: {

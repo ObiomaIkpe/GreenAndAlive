@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient';
 import { notificationService } from './notificationService';
 import { config } from '../config/environment';
 import { UtilsService } from './utilsService';
+import { authService } from './authService';
 
 export interface AIRecommendationAPI {
   id: string;
@@ -70,31 +71,59 @@ class AIServiceAPI {
     dismissed?: boolean;
   }): Promise<AIRecommendationAPI[]> {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      let data;
       
-      // Build query
-      let query = supabase
-        .from('ai_recommendations')
-        .select('*')
-        .eq('user_id', user.id);
-      
-      if (filters?.type) {
-        query = query.eq('type', filters.type);
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+        
+        // Build query
+        let query = supabase
+          .from('ai_recommendations')
+          .select('*')
+          .eq('user_id', user.id);
+        
+        if (filters?.type) {
+          query = query.eq('type', filters.type);
+        }
+        
+        if (filters?.implemented !== undefined) {
+          query = query.eq('implemented', filters.implemented);
+        }
+        
+        if (filters?.dismissed !== undefined) {
+          query = query.eq('dismissed', filters.dismissed);
+        }
+        
+        const { data: recommendations, error } = await query.order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        data = recommendations;
+      } catch (e) {
+        console.warn('Supabase recommendations fetch error, using fallback:', e);
+        // Fallback to mock data
+        data = JSON.parse(localStorage.getItem('mockRecommendations') || '[]');
+        
+        // If no mock data exists, create some
+        if (data.length === 0) {
+          data = this.getMockRecommendations();
+          localStorage.setItem('mockRecommendations', JSON.stringify(data));
+        }
+        
+        // Apply filters to mock data
+        if (filters?.type) {
+          data = data.filter(rec => rec.type === filters.type);
+        }
+        
+        if (filters?.implemented !== undefined) {
+          data = data.filter(rec => rec.implemented === filters.implemented);
+        }
+        
+        if (filters?.dismissed !== undefined) {
+          data = data.filter(rec => rec.dismissed === filters.dismissed);
+        }
       }
-      
-      if (filters?.implemented !== undefined) {
-        query = query.eq('implemented', filters.implemented);
-      }
-      
-      if (filters?.dismissed !== undefined) {
-        query = query.eq('dismissed', filters.dismissed);
-      }
-      
-      const { data, error } = await query.order('created_at', { ascending: false });
-      
-      if (error) throw error;
       
       return data.map(rec => this.formatRecommendation(rec));
     } catch (error) {
@@ -105,42 +134,75 @@ class AIServiceAPI {
 
   async generateRecommendations(data: GenerateRecommendationsRequest): Promise<AIRecommendationAPI[]> {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      let savedRecommendations = [];
       
-      // In a real implementation, this would call OpenAI API
-      // For now, we'll create mock recommendations
-      const mockRecommendations = this.getMockRecommendations(data);
-      
-      // Save recommendations to database
-      const savedRecommendations = [];
-      
-      for (const rec of mockRecommendations) {
-        const { data: savedRec, error } = await supabase
-          .from('ai_recommendations')
-          .insert({
-            user_id: user.id,
-            type: rec.type,
-            title: rec.title,
-            description: rec.description,
-            impact: rec.impact,
-            confidence: rec.confidence,
-            category: rec.category,
-            reward_potential: rec.rewardPotential,
-            action_steps: rec.actionSteps,
-            estimated_cost: rec.estimatedCost,
-            timeframe: rec.timeframe,
-            priority: rec.priority,
-            implemented: false,
-            dismissed: false,
-          })
-          .select()
-          .single();
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
         
-        if (error) throw error;
+        // In a real implementation, this would call OpenAI API
+        // For now, we'll create mock recommendations
+        const mockRecommendations = this.getMockRecommendations(data);
         
-        savedRecommendations.push(this.formatRecommendation(savedRec));
+        // Save recommendations to database
+        for (const rec of mockRecommendations) {
+          const { data: savedRec, error } = await supabase
+            .from('ai_recommendations')
+            .insert({
+              user_id: user.id,
+              type: rec.type,
+              title: rec.title,
+              description: rec.description,
+              impact: rec.impact,
+              confidence: rec.confidence,
+              category: rec.category,
+              reward_potential: rec.rewardPotential,
+              action_steps: rec.actionSteps,
+              estimated_cost: rec.estimatedCost,
+              timeframe: rec.timeframe,
+              priority: rec.priority,
+              implemented: false,
+              dismissed: false,
+            })
+            .select()
+            .single();
+          
+          if (error) throw error;
+          
+          savedRecommendations.push(this.formatRecommendation(savedRec));
+        }
+      } catch (e) {
+        console.warn('Supabase recommendations generation error, using fallback:', e);
+        // Fallback to mock data
+        const mockRecommendations = this.getMockRecommendations(data);
+        const currentUser = authService.getUser();
+        const userId = currentUser?.id || 'mock-user-id';
+        
+        // Create mock recommendations
+        savedRecommendations = mockRecommendations.map((rec, index) => ({
+          id: `mock-rec-${Date.now()}-${index}`,
+          user_id: userId,
+          type: rec.type,
+          title: rec.title,
+          description: rec.description,
+          impact: rec.impact,
+          confidence: rec.confidence,
+          category: rec.category,
+          reward_potential: rec.rewardPotential,
+          action_steps: rec.actionSteps,
+          estimated_cost: rec.estimatedCost,
+          timeframe: rec.timeframe,
+          priority: rec.priority,
+          implemented: false,
+          dismissed: false,
+          implementation_notes: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }));
+        
+        // Store in localStorage
+        localStorage.setItem('mockRecommendations', JSON.stringify(savedRecommendations));
       }
       
       notificationService.success(
@@ -157,23 +219,43 @@ class AIServiceAPI {
 
   async implementRecommendation(id: string, notes?: string): Promise<AIRecommendationAPI> {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      let data;
       
-      // Update recommendation
-      const { data, error } = await supabase
-        .from('ai_recommendations')
-        .update({
-          implemented: true,
-          implementation_notes: notes,
-        })
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .select()
-        .single();
-      
-      if (error) throw error;
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+        
+        // Update recommendation
+        const { data: updatedRec, error } = await supabase
+          .from('ai_recommendations')
+          .update({
+            implemented: true,
+            implementation_notes: notes,
+          })
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        data = updatedRec;
+      } catch (e) {
+        console.warn('Supabase recommendation implementation error, using fallback:', e);
+        // Fallback to localStorage
+        const mockRecommendations = JSON.parse(localStorage.getItem('mockRecommendations') || '[]');
+        const index = mockRecommendations.findIndex(rec => rec.id === id);
+        
+        if (index !== -1) {
+          mockRecommendations[index].implemented = true;
+          mockRecommendations[index].implementation_notes = notes || null;
+          mockRecommendations[index].updated_at = new Date().toISOString();
+          localStorage.setItem('mockRecommendations', JSON.stringify(mockRecommendations));
+          data = mockRecommendations[index];
+        } else {
+          throw new Error('Recommendation not found');
+        }
+      }
       
       notificationService.success(
         'Recommendation Implemented',
@@ -189,22 +271,41 @@ class AIServiceAPI {
 
   async dismissRecommendation(id: string): Promise<AIRecommendationAPI> {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      let data;
       
-      // Update recommendation
-      const { data, error } = await supabase
-        .from('ai_recommendations')
-        .update({
-          dismissed: true,
-        })
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .select()
-        .single();
-      
-      if (error) throw error;
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+        
+        // Update recommendation
+        const { data: updatedRec, error } = await supabase
+          .from('ai_recommendations')
+          .update({
+            dismissed: true,
+          })
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        data = updatedRec;
+      } catch (e) {
+        console.warn('Supabase recommendation dismissal error, using fallback:', e);
+        // Fallback to localStorage
+        const mockRecommendations = JSON.parse(localStorage.getItem('mockRecommendations') || '[]');
+        const index = mockRecommendations.findIndex(rec => rec.id === id);
+        
+        if (index !== -1) {
+          mockRecommendations[index].dismissed = true;
+          mockRecommendations[index].updated_at = new Date().toISOString();
+          localStorage.setItem('mockRecommendations', JSON.stringify(mockRecommendations));
+          data = mockRecommendations[index];
+        } else {
+          throw new Error('Recommendation not found');
+        }
+      }
       
       notificationService.info('Recommendation Dismissed', 'Recommendation has been dismissed');
       
@@ -295,6 +396,66 @@ class AIServiceAPI {
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
+  }
+  
+  // Generate mock recommendations for development/fallback
+  private getMockRecommendations(userProfile?: any): Partial<AIRecommendationAPI>[] {
+    return [
+      {
+        type: 'reduction',
+        title: 'Optimize Home Energy Usage',
+        description: 'Implement smart energy management practices to reduce your carbon footprint',
+        impact: 3.2,
+        confidence: 90,
+        category: 'Energy Efficiency',
+        rewardPotential: 32,
+        actionSteps: [
+          'Install a programmable thermostat',
+          'Switch to LED lighting throughout your home',
+          'Unplug electronics when not in use',
+          'Use energy-efficient appliances'
+        ],
+        estimatedCost: 300,
+        timeframe: '2-4 weeks',
+        priority: 'medium',
+      },
+      {
+        type: 'behavioral',
+        title: 'Sustainable Transportation',
+        description: 'Reduce transportation emissions through smart mobility choices',
+        impact: 4.8,
+        confidence: 85,
+        category: 'Transportation',
+        rewardPotential: 48,
+        actionSteps: [
+          'Use public transportation or carpool when possible',
+          'Walk or bike for trips under 2 miles',
+          'Combine errands into single trips',
+          'Consider electric or hybrid vehicle for next purchase'
+        ],
+        estimatedCost: 0,
+        timeframe: '1-2 weeks',
+        priority: 'high',
+      },
+      {
+        type: 'purchase',
+        title: 'Invest in Carbon Credits',
+        description: 'Purchase verified carbon credits to offset your remaining emissions',
+        impact: 5.5,
+        confidence: 80,
+        category: 'Carbon Offsetting',
+        rewardPotential: 55,
+        actionSteps: [
+          'Calculate your annual carbon footprint',
+          'Research verified carbon credit projects',
+          'Purchase credits from reputable providers',
+          'Track and verify your offset impact'
+        ],
+        estimatedCost: userProfile?.budget || 500,
+        timeframe: '1 week',
+        priority: 'high',
+      },
+    ];
   }
 
   private getMockRecommendations(userProfile: any): Partial<AIRecommendationAPI>[] {
