@@ -101,6 +101,7 @@ export class BlockchainService {
   private signer: ethers.Signer | null = null;
   private contract: ethers.Contract | null = null;
   private userAddress: string = '';
+  private isTestnet: boolean = true; // Use testnet by default
 
   async connectWallet(): Promise<string | null> {
     try {
@@ -108,21 +109,80 @@ export class BlockchainService {
         this.provider = new ethers.BrowserProvider(window.ethereum);
         await this.provider.send("eth_requestAccounts", []);
         this.signer = await this.provider.getSigner();
-        this.contract = new ethers.Contract(CONTRACT_ADDRESS, CARBON_MANAGEMENT_ABI, this.signer);
         
         this.userAddress = await this.signer.getAddress();
+        
+        // Check network and switch to Sepolia if needed
+        const network = await this.provider.getNetwork();
+        if (Number(network.chainId) !== 11155111) {
+          await this.switchToSepolia();
+        }
+        
+        // Initialize contract if available
+        const contractAddress = this.getStoredContractAddress();
+        if (contractAddress) {
+          this.contract = new ethers.Contract(contractAddress, CARBON_MANAGEMENT_ABI, this.signer);
+        }
         
         // Track wallet connection
         analyticsService.trackWalletConnection(this.userAddress);
         
         return this.userAddress;
       } else {
-        throw new Error('MetaMask not installed');
+        throw new Error('MetaMask not installed. Please install MetaMask to use blockchain features.');
       }
     } catch (error) {
       console.error('Wallet connection failed:', error);
       return null;
     }
+  }
+
+  private async switchToSepolia(): Promise<void> {
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: '0xaa36a7' }], // Sepolia chain ID
+      });
+    } catch (switchError: any) {
+      if (switchError.code === 4902) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: '0xaa36a7',
+                chainName: 'Sepolia Testnet',
+                nativeCurrency: {
+                  name: 'Sepolia ETH',
+                  symbol: 'SEP',
+                  decimals: 18,
+                },
+                rpcUrls: ['https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161'],
+                blockExplorerUrls: ['https://sepolia.etherscan.io'],
+              },
+            ],
+          });
+        } catch (addError) {
+          console.error('Failed to add Sepolia network:', addError);
+          throw addError;
+        }
+      } else {
+        throw switchError;
+      }
+    }
+  }
+
+  private getStoredContractAddress(): string | null {
+    try {
+      const stored = localStorage.getItem('carbonai_testnet_deployment');
+      if (stored) {
+        const deployment = JSON.parse(stored);
+        return deployment.contractAddress;
+      }
+    } catch (error) {
+      console.warn('Failed to load stored contract address:', error);
+    }
+    return null;
   }
 
   // === WASTE DISPOSAL REWARDS SYSTEM ===

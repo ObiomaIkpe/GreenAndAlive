@@ -4,7 +4,7 @@ import { notificationService } from './notificationService';
 
 // Sepolia Testnet Configuration
 const SEPOLIA_CHAIN_ID = 11155111;
-const SEPOLIA_RPC_URL = 'https://sepolia.infura.io/v3/YOUR_PROJECT_ID';
+const SEPOLIA_RPC_URL = 'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161';
 const SEPOLIA_EXPLORER = 'https://sepolia.etherscan.io';
 
 // Simplified Carbon Credit Token Contract (Solidity source for reference)
