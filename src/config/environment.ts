@@ -5,7 +5,7 @@ export const config = {
   
   // API Configuration
   api: {
-    baseUrl: import.meta.env.VITE_API_BASE_URL || 'https://api.carbonai.com',
+    baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1',
     timeout: 30000,
     retryAttempts: 3
   },
