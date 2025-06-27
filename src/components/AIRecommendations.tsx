@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Brain, TrendingUp, Lightbulb, Target, Coins, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
+import { Brain, TrendingUp, Lightbulb, Target, Coins, RefreshCw, AlertCircle, CheckCircle, X } from 'lucide-react';
 import { aiService, AIRecommendation } from '../services/aiService';
 import { useAsync } from '../hooks/useAsync';
+import { localStorageService } from '../services/localStorage';
+import { notificationService } from '../services/notificationService';
 import LoadingSpinner from './LoadingSpinner';
 
 export default function AIRecommendations() {
@@ -15,6 +17,13 @@ export default function AIRecommendations() {
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [implementedRecommendations, setImplementedRecommendations] = useState<Set<string>>(new Set());
+  const [dismissedRecommendations, setDismissedRecommendations] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const userData = localStorageService.getUserData();
+    setImplementedRecommendations(new Set(userData.aiRecommendations.implemented));
+    setDismissedRecommendations(new Set(userData.aiRecommendations.dismissed));
+  }, []);
 
   const { data: recommendations, loading, error, refetch } = useAsync(
     () => aiService.generateRecommendations(userProfile),
@@ -47,10 +56,39 @@ export default function AIRecommendations() {
 
   const handleRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
+    notificationService.info('Refreshing Recommendations', 'Getting latest AI recommendations...');
   };
 
-  const handleImplement = (recommendationId: string) => {
+  const handleImplement = (recommendationId: string, title: string) => {
+    localStorageService.implementRecommendation(recommendationId);
     setImplementedRecommendations(prev => new Set([...prev, recommendationId]));
+    
+    notificationService.success(
+      'Recommendation Implemented',
+      `"${title}" has been marked as implemented. Great job!`,
+      {
+        label: 'View Progress',
+        onClick: () => console.log('Navigate to progress')
+      }
+    );
+  };
+
+  const handleDismiss = (recommendationId: string, title: string) => {
+    localStorageService.dismissRecommendation(recommendationId);
+    setDismissedRecommendations(prev => new Set([...prev, recommendationId]));
+    
+    notificationService.info(
+      'Recommendation Dismissed',
+      `"${title}" has been dismissed`
+    );
+  };
+
+  const handleLearnMore = (recommendation: AIRecommendation) => {
+    notificationService.info(
+      'Learn More',
+      `Opening detailed information about "${recommendation.title}"`
+    );
+    // In a real app, this would open a modal or navigate to a detailed page
   };
 
   const typeIcons = {
@@ -73,6 +111,11 @@ export default function AIRecommendations() {
     high: 'border-l-orange-400',
     critical: 'border-l-red-400'
   };
+
+  // Filter out dismissed recommendations
+  const visibleRecommendations = recommendations?.filter(rec => 
+    !dismissedRecommendations.has(rec.id)
+  ) || [];
 
   if (loading) {
     return (
@@ -188,128 +231,163 @@ export default function AIRecommendations() {
       {/* AI Recommendations */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-4 sm:p-6 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">Personalized Recommendations</h3>
-          <p className="text-sm text-gray-600">AI-generated suggestions based on your profile and behavior patterns</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Personalized Recommendations</h3>
+              <p className="text-sm text-gray-600">AI-generated suggestions based on your profile and behavior patterns</p>
+            </div>
+            <div className="text-sm text-gray-500">
+              {implementedRecommendations.size} implemented • {dismissedRecommendations.size} dismissed
+            </div>
+          </div>
         </div>
 
         <div className="p-4 sm:p-6">
-          <div className="space-y-4">
-            {recommendations?.map((rec) => (
-              <div 
-                key={rec.id} 
-                className={`border-l-4 ${priorityColors[rec.priority]} border border-gray-200 rounded-lg p-4 hover:border-indigo-300 transition-all duration-200 ${
-                  implementedRecommendations.has(rec.id) ? 'bg-green-50' : ''
-                }`}
-              >
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-3">
-                  <div className="flex items-start space-x-3 min-w-0 flex-1">
-                    <div className={`p-2 rounded-lg ${typeColors[rec.type]} flex-shrink-0`}>
-                      {typeIcons[rec.type]}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <h3 className="font-semibold text-gray-900">{rec.title}</h3>
-                        {implementedRecommendations.has(rec.id) && (
-                          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                        )}
+          {visibleRecommendations.length > 0 ? (
+            <div className="space-y-4">
+              {visibleRecommendations.map((rec) => (
+                <div 
+                  key={rec.id} 
+                  className={`border-l-4 ${priorityColors[rec.priority]} border border-gray-200 rounded-lg p-4 hover:border-indigo-300 transition-all duration-200 ${
+                    implementedRecommendations.has(rec.id) ? 'bg-green-50' : ''
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start space-x-3 min-w-0 flex-1">
+                      <div className={`p-2 rounded-lg ${typeColors[rec.type]} flex-shrink-0`}>
+                        {typeIcons[rec.type]}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                          {rec.category}
-                        </span>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          rec.priority === 'critical' ? 'bg-red-100 text-red-800' :
-                          rec.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                          rec.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {rec.priority} priority
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-left lg:text-right flex-shrink-0">
-                    <div className="text-lg font-bold text-emerald-600">
-                      {rec.impact} tons CO₂
-                    </div>
-                    <div className="text-xs text-gray-500">potential impact</div>
-                  </div>
-                </div>
-
-                <p className="text-gray-700 mb-3">{rec.description}</p>
-
-                {/* Action Steps */}
-                {rec.actionSteps && rec.actionSteps.length > 0 && (
-                  <div className="mb-3">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">Action Steps:</h4>
-                    <ol className="text-sm text-gray-600 space-y-1">
-                      {rec.actionSteps.map((step, index) => (
-                        <li key={index} className="flex items-start space-x-2">
-                          <span className="text-indigo-600 font-medium flex-shrink-0">{index + 1}.</span>
-                          <span>{step}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-600">Confidence:</span>
-                      <div className="flex items-center space-x-1">
-                        <div className="w-16 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-indigo-500 h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${rec.confidence}%` }}
-                          ></div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <h3 className="font-semibold text-gray-900">{rec.title}</h3>
+                          {implementedRecommendations.has(rec.id) && (
+                            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                          )}
                         </div>
-                        <span className="text-sm font-medium text-gray-900">{rec.confidence}%</span>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                            {rec.category}
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            rec.priority === 'critical' ? 'bg-red-100 text-red-800' :
+                            rec.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                            rec.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {rec.priority} priority
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium">Timeframe:</span> {rec.timeframe}
-                    </div>
-                    {rec.estimatedCost && (
-                      <div className="text-sm text-gray-600">
-                        <span className="font-medium">Cost:</span> ${rec.estimatedCost}
+                    
+                    <div className="flex items-start space-x-2">
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-lg font-bold text-emerald-600">
+                          {rec.impact} tons CO₂
+                        </div>
+                        <div className="text-xs text-gray-500">potential impact</div>
                       </div>
-                    )}
+                      
+                      <button
+                        onClick={() => handleDismiss(rec.id, rec.title)}
+                        className="p-1 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                        title="Dismiss recommendation"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  
-                  {rec.rewardPotential && (
-                    <div className="flex items-center space-x-2 bg-yellow-50 px-3 py-1 rounded-full w-fit">
-                      <Coins className="w-4 h-4 text-yellow-600" />
-                      <span className="text-sm font-medium text-yellow-800">+{rec.rewardPotential} CARB</span>
+
+                  <p className="text-gray-700 mb-3">{rec.description}</p>
+
+                  {/* Action Steps */}
+                  {rec.actionSteps && rec.actionSteps.length > 0 && (
+                    <div className="mb-3">
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">Action Steps:</h4>
+                      <ol className="text-sm text-gray-600 space-y-1">
+                        {rec.actionSteps.map((step, index) => (
+                          <li key={index} className="flex items-start space-x-2">
+                            <span className="text-indigo-600 font-medium flex-shrink-0">{index + 1}.</span>
+                            <span>{step}</span>
+                          </li>
+                        ))}
+                      </ol>
                     </div>
                   )}
-                </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="text-xs text-gray-500">
-                    AI-powered recommendation • Smart contract rewards available
-                  </div>
-                  <div className="flex space-x-2">
-                    <button className="px-3 py-1 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200">
-                      Learn More
-                    </button>
-                    {!implementedRecommendations.has(rec.id) ? (
-                      <button 
-                        onClick={() => handleImplement(rec.id)}
-                        className="px-3 py-1 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors duration-200"
-                      >
-                        Implement
-                      </button>
-                    ) : (
-                      <span className="px-3 py-1 text-sm text-green-600 bg-green-100 rounded-md">
-                        Implemented ✓
-                      </span>
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-600">Confidence:</span>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-16 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-indigo-500 h-2 rounded-full transition-all duration-500"
+                              style={{ width: `${rec.confidence}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-medium text-gray-900">{rec.confidence}%</span>
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        <span className="font-medium">Timeframe:</span> {rec.timeframe}
+                      </div>
+                      {rec.estimatedCost && (
+                        <div className="text-sm text-gray-600">
+                          <span className="font-medium">Cost:</span> ${rec.estimatedCost}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {rec.rewardPotential && (
+                      <div className="flex items-center space-x-2 bg-yellow-50 px-3 py-1 rounded-full w-fit">
+                        <Coins className="w-4 h-4 text-yellow-600" />
+                        <span className="text-sm font-medium text-yellow-800">+{rec.rewardPotential} CARB</span>
+                      </div>
                     )}
                   </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="text-xs text-gray-500">
+                      AI-powered recommendation • Smart contract rewards available
+                    </div>
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => handleLearnMore(rec)}
+                        className="px-3 py-1 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200"
+                      >
+                        Learn More
+                      </button>
+                      {!implementedRecommendations.has(rec.id) ? (
+                        <button 
+                          onClick={() => handleImplement(rec.id, rec.title)}
+                          className="px-3 py-1 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors duration-200"
+                        >
+                          Implement
+                        </button>
+                      ) : (
+                        <span className="px-3 py-1 text-sm text-green-600 bg-green-100 rounded-md">
+                          Implemented ✓
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Brain className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">No recommendations available</p>
+              <p className="text-sm text-gray-500 mt-1">All recommendations have been implemented or dismissed</p>
+              <button
+                onClick={handleRefresh}
+                className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200"
+              >
+                Get New Recommendations
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

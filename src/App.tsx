@@ -14,34 +14,47 @@ import Analytics from './components/Analytics';
 import Profile from './components/Profile';
 import BlockchainDashboard from './components/BlockchainDashboard';
 import LoadingSpinner from './components/LoadingSpinner';
+import NotificationContainer from './components/NotificationContainer';
 import { UserPortfolio } from './types';
 import { analyticsService } from './services/analytics';
+import { localStorageService } from './services/localStorage';
 import { config } from './config/environment';
-
-const mockPortfolio: UserPortfolio = {
-  totalCredits: 1247,
-  totalValue: 52850,
-  monthlyOffset: 18.5,
-  carbonFootprint: 32.4,
-  reductionGoal: 24.0,
-  achievements: [
-    'Carbon Neutral Champion - Achieved 3 consecutive months',
-    'Forest Protector - 100+ conservation credits purchased',
-    'Efficiency Expert - 30% emission reduction achieved'
-  ],
-  walletAddress: '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6',
-  tokenBalance: 1247,
-  stakingRewards: 156.5,
-  nftBadges: []
-};
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isLoading, setIsLoading] = useState(true);
+  const [portfolio, setPortfolio] = useState<UserPortfolio>({
+    totalCredits: 1247,
+    totalValue: 52850,
+    monthlyOffset: 18.5,
+    carbonFootprint: 32.4,
+    reductionGoal: 24.0,
+    achievements: [
+      'Carbon Neutral Champion - Achieved 3 consecutive months',
+      'Forest Protector - 100+ conservation credits purchased',
+      'Efficiency Expert - 30% emission reduction achieved'
+    ],
+    walletAddress: '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6',
+    tokenBalance: 1247,
+    stakingRewards: 156.5,
+    nftBadges: []
+  });
 
   useEffect(() => {
     // Initialize analytics
     analyticsService.initialize();
+    
+    // Load user data from localStorage
+    const userData = localStorageService.getUserData();
+    setPortfolio(prev => ({
+      ...prev,
+      totalCredits: userData.portfolio.totalCredits,
+      totalValue: userData.portfolio.totalValue,
+      monthlyOffset: userData.portfolio.monthlyOffset,
+      carbonFootprint: userData.carbonFootprint.totalEmissions || prev.carbonFootprint,
+      reductionGoal: userData.portfolio.reductionGoal,
+      achievements: userData.portfolio.achievements
+    }));
     
     // Simulate app initialization
     const timer = setTimeout(() => {
@@ -56,10 +69,29 @@ function App() {
     analyticsService.trackPageView(activeTab);
   }, [activeTab]);
 
+  // Update portfolio when localStorage changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const userData = localStorageService.getUserData();
+      setPortfolio(prev => ({
+        ...prev,
+        totalCredits: userData.portfolio.totalCredits,
+        totalValue: userData.portfolio.totalValue,
+        monthlyOffset: userData.portfolio.monthlyOffset,
+        carbonFootprint: userData.carbonFootprint.totalEmissions || prev.carbonFootprint,
+        reductionGoal: userData.portfolio.reductionGoal,
+        achievements: userData.portfolio.achievements
+      }));
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard portfolio={mockPortfolio} />;
+        return <Dashboard portfolio={portfolio} />;
       case 'calculator':
         return <CarbonCalculator />;
       case 'marketplace':
@@ -77,13 +109,13 @@ function App() {
       case 'verification':
         return <VerificationDashboard />;
       case 'blockchain':
-        return config.features.blockchainEnabled ? <BlockchainDashboard /> : <Dashboard portfolio={mockPortfolio} />;
+        return config.features.blockchainEnabled ? <BlockchainDashboard /> : <Dashboard portfolio={portfolio} />;
       case 'analytics':
         return <Analytics />;
       case 'profile':
         return <Profile />;
       default:
-        return <Dashboard portfolio={mockPortfolio} />;
+        return <Dashboard portfolio={portfolio} />;
     }
   };
 
@@ -105,6 +137,7 @@ function App() {
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
           {renderContent()}
         </main>
+        <NotificationContainer />
       </div>
     </ErrorBoundary>
   );
