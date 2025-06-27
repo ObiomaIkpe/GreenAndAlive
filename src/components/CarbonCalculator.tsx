@@ -27,22 +27,22 @@ export default function CarbonCalculator() {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-      <div className="p-6 border-b border-gray-100">
+      <div className="p-4 sm:p-6 border-b border-gray-100">
         <div className="flex items-center space-x-3">
           <div className="bg-blue-100 p-2 rounded-lg">
-            <Calculator className="w-6 h-6 text-blue-600" />
+            <Calculator className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
           </div>
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Carbon Footprint Calculator</h2>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Carbon Footprint Calculator</h2>
             <p className="text-sm text-gray-600">Track and calculate your environmental impact</p>
           </div>
         </div>
       </div>
 
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-6">
         {sources.map((source, index) => (
           <div key={source.category} className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="flex items-center space-x-3">
                 <div className="text-gray-600">{source.icon}</div>
                 <div>
@@ -50,13 +50,13 @@ export default function CarbonCalculator() {
                   <p className="text-sm text-gray-500">{source.unit}</p>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-left sm:text-right">
                 <p className="text-lg font-semibold text-gray-900">
                   {(source.value * source.emissions).toFixed(1)} tons CO₂
                 </p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
               <input
                 type="range"
                 min="0"
@@ -77,13 +77,13 @@ export default function CarbonCalculator() {
 
         <div className="pt-6 border-t border-gray-100">
           <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-lg p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Total Annual Emissions</h3>
                 <p className="text-sm text-gray-600">Based on your current usage patterns</p>
               </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-red-600">{totalEmissions.toFixed(1)}</p>
+              <div className="text-left sm:text-right">
+                <p className="text-2xl sm:text-3xl font-bold text-red-600">{totalEmissions.toFixed(1)}</p>
                 <p className="text-sm text-red-500">tons CO₂/year</p>
               </div>
             </div>

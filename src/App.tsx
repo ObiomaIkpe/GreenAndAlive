@@ -89,7 +89,7 @@ function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
           <LoadingSpinner size="lg" />
           <p className="mt-4 text-gray-600">Loading CarbonAI...</p>
@@ -102,7 +102,7 @@ function App() {
     <ErrorBoundary>
       <div className="min-h-screen bg-gray-50">
         <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
           {renderContent()}
         </main>
       </div>

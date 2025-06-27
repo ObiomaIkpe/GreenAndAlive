@@ -51,7 +51,6 @@ export default function AIRecommendations() {
 
   const handleImplement = (recommendationId: string) => {
     setImplementedRecommendations(prev => new Set([...prev, recommendationId]));
-    // Here you would typically call an API to track implementation
   };
 
   const typeIcons = {
@@ -77,7 +76,7 @@ export default function AIRecommendations() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8">
         <div className="text-center">
           <LoadingSpinner size="lg" />
           <p className="mt-4 text-gray-600">AI is analyzing your carbon profile...</p>
@@ -88,7 +87,7 @@ export default function AIRecommendations() {
 
   if (error) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">AI Service Unavailable</h3>
@@ -105,24 +104,24 @@ export default function AIRecommendations() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header with AI Status */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-6 border-b border-gray-100">
-          <div className="flex items-center justify-between">
+        <div className="p-4 sm:p-6 border-b border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center space-x-3">
               <div className="bg-indigo-100 p-2 rounded-lg">
-                <Brain className="w-6 h-6 text-indigo-600" />
+                <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
               </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">AI-Powered Recommendations</h2>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">AI-Powered Recommendations</h2>
                 <p className="text-sm text-gray-600">Personalized insights powered by advanced machine learning</p>
               </div>
             </div>
             <button
               onClick={handleRefresh}
               disabled={loading}
-              className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50"
+              className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 w-full sm:w-auto justify-center"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
@@ -132,23 +131,23 @@ export default function AIRecommendations() {
 
         {/* AI Insights Summary */}
         {insights && (
-          <div className="p-6 bg-gradient-to-r from-indigo-50 to-purple-50">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="p-4 sm:p-6 bg-gradient-to-r from-indigo-50 to-purple-50">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-indigo-600">{insights.carbonEfficiencyScore}</div>
-                <div className="text-sm text-gray-600">Efficiency Score</div>
+                <div className="text-xl sm:text-2xl font-bold text-indigo-600">{insights.carbonEfficiencyScore}</div>
+                <div className="text-xs sm:text-sm text-gray-600">Efficiency Score</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">{insights.improvementPotential}%</div>
-                <div className="text-sm text-gray-600">Improvement Potential</div>
+                <div className="text-xl sm:text-2xl font-bold text-purple-600">{insights.improvementPotential}%</div>
+                <div className="text-xs sm:text-sm text-gray-600">Improvement Potential</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-emerald-600">{insights.benchmarkComparison.similar_users}</div>
-                <div className="text-sm text-gray-600">vs Similar Users</div>
+                <div className="text-xl sm:text-2xl font-bold text-emerald-600">{insights.benchmarkComparison.similar_users}</div>
+                <div className="text-xs sm:text-sm text-gray-600">vs Similar Users</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{prediction?.confidence || 85}%</div>
-                <div className="text-sm text-gray-600">Prediction Confidence</div>
+                <div className="text-xl sm:text-2xl font-bold text-blue-600">{prediction?.confidence || 85}%</div>
+                <div className="text-xs sm:text-sm text-gray-600">Prediction Confidence</div>
               </div>
             </div>
           </div>
@@ -157,11 +156,11 @@ export default function AIRecommendations() {
 
       {/* Carbon Prediction */}
       {prediction && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Carbon Emission Prediction</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-blue-50 rounded-lg p-4">
-              <div className="text-2xl font-bold text-blue-600">{prediction.predictedEmissions.toFixed(1)} tons</div>
+              <div className="text-xl sm:text-2xl font-bold text-blue-600">{prediction.predictedEmissions.toFixed(1)} tons</div>
               <div className="text-sm text-blue-800">Predicted Next Quarter</div>
             </div>
             <div className="bg-emerald-50 rounded-lg p-4">
@@ -188,12 +187,12 @@ export default function AIRecommendations() {
 
       {/* AI Recommendations */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-6 border-b border-gray-100">
+        <div className="p-4 sm:p-6 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900">Personalized Recommendations</h3>
           <p className="text-sm text-gray-600">AI-generated suggestions based on your profile and behavior patterns</p>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <div className="space-y-4">
             {recommendations?.map((rec) => (
               <div 
@@ -202,19 +201,19 @@ export default function AIRecommendations() {
                   implementedRecommendations.has(rec.id) ? 'bg-green-50' : ''
                 }`}
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg ${typeColors[rec.type]}`}>
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-3">
+                  <div className="flex items-start space-x-3 min-w-0 flex-1">
+                    <div className={`p-2 rounded-lg ${typeColors[rec.type]} flex-shrink-0`}>
                       {typeIcons[rec.type]}
                     </div>
-                    <div>
-                      <div className="flex items-center space-x-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
                         <h3 className="font-semibold text-gray-900">{rec.title}</h3>
                         {implementedRecommendations.has(rec.id) && (
-                          <CheckCircle className="w-5 h-5 text-green-600" />
+                          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
                         )}
                       </div>
-                      <div className="flex items-center space-x-2 mt-1">
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
                         <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                           {rec.category}
                         </span>
@@ -229,7 +228,7 @@ export default function AIRecommendations() {
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-left lg:text-right flex-shrink-0">
                     <div className="text-lg font-bold text-emerald-600">
                       {rec.impact} tons CO₂
                     </div>
@@ -246,7 +245,7 @@ export default function AIRecommendations() {
                     <ol className="text-sm text-gray-600 space-y-1">
                       {rec.actionSteps.map((step, index) => (
                         <li key={index} className="flex items-start space-x-2">
-                          <span className="text-indigo-600 font-medium">{index + 1}.</span>
+                          <span className="text-indigo-600 font-medium flex-shrink-0">{index + 1}.</span>
                           <span>{step}</span>
                         </li>
                       ))}
@@ -254,8 +253,8 @@ export default function AIRecommendations() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center space-x-4">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-gray-600">Confidence:</span>
                       <div className="flex items-center space-x-1">
@@ -279,14 +278,14 @@ export default function AIRecommendations() {
                   </div>
                   
                   {rec.rewardPotential && (
-                    <div className="flex items-center space-x-2 bg-yellow-50 px-3 py-1 rounded-full">
+                    <div className="flex items-center space-x-2 bg-yellow-50 px-3 py-1 rounded-full w-fit">
                       <Coins className="w-4 h-4 text-yellow-600" />
                       <span className="text-sm font-medium text-yellow-800">+{rec.rewardPotential} CARB</span>
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="text-xs text-gray-500">
                     AI-powered recommendation • Smart contract rewards available
                   </div>
@@ -315,7 +314,7 @@ export default function AIRecommendations() {
       </div>
 
       {/* AI Learning Progress */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
         <div className="flex items-center space-x-3 mb-4">
           <Brain className="w-5 h-5 text-indigo-600" />
           <div>
@@ -323,7 +322,7 @@ export default function AIRecommendations() {
             <p className="text-sm text-gray-600">Your AI assistant becomes more accurate with each interaction</p>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <div className="flex justify-between text-sm mb-1">
               <span className="text-gray-600">Model Accuracy</span>

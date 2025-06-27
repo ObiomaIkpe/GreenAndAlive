@@ -78,21 +78,21 @@ export default function Marketplace() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
+        <div className="flex flex-col gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Carbon Credit Marketplace</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Carbon Credit Marketplace</h2>
             <p className="text-gray-600">Discover and purchase verified carbon credits</p>
           </div>
           
           {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
             >
               <option value="all">All Types</option>
               <option value="forest">Forest Protection</option>
@@ -104,7 +104,7 @@ export default function Marketplace() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
             >
               <option value="price">Sort by Price</option>
               <option value="quantity">Sort by Quantity</option>
@@ -115,11 +115,11 @@ export default function Marketplace() {
       </div>
 
       {/* Credit Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
         {sortedCredits.map((credit) => (
           <div key={credit.id} className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300">
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
+            <div className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                 <div className="flex items-center space-x-3">
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${typeColors[credit.type]}`}>
                     {credit.type.charAt(0).toUpperCase() + credit.type.slice(1)}
@@ -131,8 +131,8 @@ export default function Marketplace() {
                     </span>
                   )}
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-gray-900">${credit.price}</p>
+                <div className="text-left sm:text-right">
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">${credit.price}</p>
                   <p className="text-sm text-gray-500">per credit</p>
                 </div>
               </div>
@@ -140,30 +140,30 @@ export default function Marketplace() {
               <h3 className="text-lg font-semibold text-gray-900 mb-2">{credit.description}</h3>
               
               <div className="flex items-center space-x-2 text-sm text-gray-600 mb-3">
-                <MapPin className="w-4 h-4" />
-                <span>{credit.location}</span>
+                <MapPin className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{credit.location}</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
                 <div>
                   <span className="text-gray-500">Available:</span>
-                  <span className="font-medium text-gray-900 ml-2">{credit.quantity.toLocaleString()} credits</span>
+                  <span className="font-medium text-gray-900 ml-2 block sm:inline">{credit.quantity.toLocaleString()} credits</span>
                 </div>
                 <div>
                   <span className="text-gray-500">Vintage:</span>
-                  <span className="font-medium text-gray-900 ml-2">{credit.vintage}</span>
+                  <span className="font-medium text-gray-900 ml-2 block sm:inline">{credit.vintage}</span>
                 </div>
                 <div>
                   <span className="text-gray-500">Seller:</span>
-                  <span className="font-medium text-gray-900 ml-2">{credit.seller}</span>
+                  <span className="font-medium text-gray-900 ml-2 block sm:inline truncate">{credit.seller}</span>
                 </div>
                 <div>
                   <span className="text-gray-500">Standard:</span>
-                  <span className="font-medium text-gray-900 ml-2">{credit.certification}</span>
+                  <span className="font-medium text-gray-900 ml-2 block sm:inline">{credit.certification}</span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-gray-100">
                 <div className="flex items-center space-x-1">
                   <Star className="w-4 h-4 text-yellow-400 fill-current" />
                   <Star className="w-4 h-4 text-yellow-400 fill-current" />
@@ -173,7 +173,7 @@ export default function Marketplace() {
                   <span className="text-sm text-gray-600 ml-1">4.0 (124 reviews)</span>
                 </div>
                 
-                <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center space-x-2 w-full sm:w-auto">
                   <ShoppingCart className="w-4 h-4" />
                   <span>Purchase</span>
                 </button>
@@ -184,19 +184,19 @@ export default function Marketplace() {
       </div>
 
       {/* Market Statistics */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+      <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Market Insights</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="text-center p-4 bg-emerald-50 rounded-lg">
-            <p className="text-2xl font-bold text-emerald-600">$42.15</p>
+            <p className="text-xl sm:text-2xl font-bold text-emerald-600">$42.15</p>
             <p className="text-sm text-gray-600">Average Price per Credit</p>
           </div>
           <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <p className="text-2xl font-bold text-blue-600">15,847</p>
+            <p className="text-xl sm:text-2xl font-bold text-blue-600">15,847</p>
             <p className="text-sm text-gray-600">Credits Traded Today</p>
           </div>
           <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <p className="text-2xl font-bold text-purple-600">+12.5%</p>
+            <p className="text-xl sm:text-2xl font-bold text-purple-600">+12.5%</p>
             <p className="text-sm text-gray-600">Market Growth This Month</p>
           </div>
         </div>
