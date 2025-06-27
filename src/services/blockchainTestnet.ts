@@ -329,23 +329,27 @@ export class BlockchainTestnetService {
         throw new Error('Contract not initialized');
       }
 
-      // Simulate transaction
-      const mockTxHash = '0x' + Math.random().toString(16).substr(2, 64);
-      
       notificationService.info(
         'Transaction Submitted',
         'Minting carbon credits...'
       );
 
-      // Simulate transaction delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call the actual mint function
+      const tx = await this.contract.mintCarbonCredit(
+        this.userAddress,
+        ethers.parseEther(amount.toString()),
+        metadata
+      );
+
+      // Wait for transaction confirmation
+      await tx.wait();
 
       analyticsService.track({
         name: 'tokens_minted',
         properties: {
           amount,
           metadata,
-          txHash: mockTxHash
+          txHash: tx.hash
         }
       });
 
@@ -354,16 +358,16 @@ export class BlockchainTestnetService {
         `Successfully minted ${amount} CARB tokens`,
         {
           label: 'View Transaction',
-          onClick: () => window.open(`${SEPOLIA_EXPLORER}/tx/${mockTxHash}`, '_blank')
+          onClick: () => window.open(`${SEPOLIA_EXPLORER}/tx/${tx.hash}`, '_blank')
         }
       );
 
-      return mockTxHash;
+      return tx.hash;
     } catch (error) {
       console.error('Token minting failed:', error);
       notificationService.error(
         'Minting Failed',
-        'Failed to mint tokens. Please try again.'
+        `Failed to mint tokens: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
       return null;
     }

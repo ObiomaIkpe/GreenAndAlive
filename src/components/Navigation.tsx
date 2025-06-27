@@ -44,55 +44,56 @@ export default function Navigation({ activeTab, setActiveTab }: Props) {
             </div>
           </div>
 
-          {/* Desktop Navigation - Hidden on smaller screens */}
-          <div className="hidden xl:flex space-x-2 flex-1 justify-center max-w-6xl mx-8">
+          {/* Desktop Navigation - Full labels for XL screens */}
+          <div className="hidden xl:flex space-x-1 flex-1 justify-center max-w-6xl mx-8">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center space-x-2 px-3 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${
                     activeTab === item.id
                       ? 'bg-emerald-100 text-emerald-700 shadow-sm border border-emerald-200'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
                   }`}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span>{item.label}</span>
+                  <span className="text-xs">{item.label}</span>
                 </button>
               );
             })}
           </div>
 
-          {/* Tablet Navigation - Show fewer items with tooltips */}
+          {/* Tablet Navigation - Icons with tooltips for LG screens */}
           <div className="hidden lg:flex xl:hidden space-x-1 flex-1 justify-center max-w-4xl mx-8">
             {navItems.slice(0, 8).map((item) => {
               const Icon = item.icon;
               return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`relative group flex items-center justify-center p-2.5 rounded-lg font-medium text-xs transition-all duration-200 ${
-                    activeTab === item.id
-                      ? 'bg-emerald-100 text-emerald-700 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
+                <div key={item.id} className="relative group">
+                  <button
+                    onClick={() => setActiveTab(item.id)}
+                    className={`flex items-center justify-center p-2.5 rounded-lg font-medium transition-all duration-200 ${
+                      activeTab === item.id
+                        ? 'bg-emerald-100 text-emerald-700 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </button>
                   {/* Tooltip */}
                   <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                     {item.label}
                     <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                   </div>
-                </button>
+                </div>
               );
             })}
             {/* More menu for remaining items */}
             <div className="relative">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="relative group flex items-center justify-center p-2.5 rounded-lg font-medium text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200"
+                className="relative group flex items-center justify-center p-2.5 rounded-lg font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200"
               >
                 <Menu className="w-4 h-4" />
                 {/* Tooltip */}
@@ -119,15 +120,7 @@ export default function Navigation({ activeTab, setActiveTab }: Props) {
                         }`}
                       >
                         <Icon className="w-4 h-4" />
-                        <div className="flex flex-col items-start">
-                          <span className="font-medium">{item.label}</span>
-                          <span className="text-xs text-gray-500">
-                            {item.id === 'blockchain-testnet' ? 'Test smart contracts' :
-                             item.id === 'production-guide' ? 'Deploy to mainnet' :
-                             item.id === 'analytics' ? 'View carbon insights' :
-                             item.id === 'profile' ? 'Manage account' : 'Advanced features'}
-                          </span>
-                        </div>
+                        <span>{item.label}</span>
                       </button>
                     );
                   })}
@@ -138,9 +131,16 @@ export default function Navigation({ activeTab, setActiveTab }: Props) {
 
           {/* Desktop Settings */}
           <div className="hidden lg:flex items-center space-x-3">
-            <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200">
-              <Settings className="w-5 h-5" />
-            </button>
+            <div className="relative group">
+              <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200">
+                <Settings className="w-5 h-5" />
+              </button>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                Settings
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+              </div>
+            </div>
           </div>
 
           {/* Mobile Menu Button */}
