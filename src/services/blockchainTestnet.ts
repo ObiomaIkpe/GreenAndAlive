@@ -228,26 +228,38 @@ export class BlockchainTestnetService {
         'Deploying carbon credit contract to Sepolia testnet...'
       );
 
-      // For demo purposes, we'll simulate a successful deployment
-      // In a real implementation, you would use the actual bytecode
+      // Deploy the actual contract
+      const contractFactory = new ethers.ContractFactory(
+        CARBON_CREDIT_ABI,
+        CONTRACT_BYTECODE,
+        this.signer
+      );
+
+      const contract = await contractFactory.deploy();
+      await contract.waitForDeployment();
+
+      const contractAddress = await contract.getAddress();
+      const deploymentTx = contract.deploymentTransaction();
       
-      // Simulate deployment delay
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Generate a mock contract address (in real implementation, this would come from the actual deployment)
-      const mockContractAddress = '0x' + Math.random().toString(16).substr(2, 40);
-      const mockTxHash = '0x' + Math.random().toString(16).substr(2, 64);
-      
-      this.contractAddress = mockContractAddress;
+      if (!deploymentTx) {
+        throw new Error('Deployment transaction not found');
+      }
+
+      const receipt = await deploymentTx.wait();
+      if (!receipt) {
+        throw new Error('Deployment receipt not found');
+      }
+
+      this.contractAddress = contractAddress;
       
       // Create contract instance for interaction
-      this.contract = new ethers.Contract(mockContractAddress, CARBON_CREDIT_ABI, this.signer);
+      this.contract = contract;
 
       const deployment: TestnetDeployment = {
-        contractAddress: mockContractAddress,
-        deploymentTx: mockTxHash,
-        blockNumber: Math.floor(Math.random() * 1000000) + 4000000,
-        gasUsed: '2847392',
+        contractAddress,
+        deploymentTx: deploymentTx.hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed.toString(),
         deployer: this.userAddress,
         timestamp: new Date().toISOString()
       };
@@ -258,7 +270,7 @@ export class BlockchainTestnetService {
       analyticsService.track({
         name: 'contract_deployed',
         properties: {
-          contractAddress: mockContractAddress,
+          contractAddress,
           network: 'sepolia',
           gasUsed: deployment.gasUsed
         }
@@ -266,10 +278,10 @@ export class BlockchainTestnetService {
 
       notificationService.success(
         'Contract Deployed!',
-        `Contract deployed at ${mockContractAddress.slice(0, 6)}...${mockContractAddress.slice(-4)}`,
+        `Contract deployed at ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
         {
           label: 'View on Etherscan',
-          onClick: () => window.open(`${SEPOLIA_EXPLORER}/address/${mockContractAddress}`, '_blank')
+          onClick: () => window.open(`${SEPOLIA_EXPLORER}/address/${contractAddress}`, '_blank')
         }
       );
 
@@ -309,13 +321,19 @@ export class BlockchainTestnetService {
         return null;
       }
 
-      // For demo purposes, return mock data
-      // In real implementation, these would be actual contract calls
+      // Make actual contract calls
+      const [name, symbol, totalSupply, userBalance] = await Promise.all([
+        this.contract.name(),
+        this.contract.symbol(),
+        this.contract.totalSupply(),
+        this.contract.balanceOf(this.userAddress)
+      ]);
+
       return {
-        name: 'CarbonAI Token',
-        symbol: 'CARB',
-        totalSupply: '1000000.0',
-        userBalance: '0.0'
+        name,
+        symbol,
+        totalSupply: ethers.formatEther(totalSupply),
+        userBalance: ethers.formatEther(userBalance)
       };
     } catch (error) {
       console.error('Failed to get contract info:', error);
@@ -379,23 +397,21 @@ export class BlockchainTestnetService {
         throw new Error('Contract not initialized');
       }
 
-      // Simulate transaction
-      const mockTxHash = '0x' + Math.random().toString(16).substr(2, 64);
-      
       notificationService.info(
         'Transaction Submitted',
         'Staking tokens...'
       );
 
-      // Simulate transaction delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call the actual stake function
+      const tx = await this.contract.stake(ethers.parseEther(amount.toString()));
+      await tx.wait();
 
       analyticsService.track({
         name: 'tokens_staked',
         properties: {
           amount,
           lockPeriodDays,
-          txHash: mockTxHash
+          txHash: tx.hash
         }
       });
 
@@ -404,16 +420,16 @@ export class BlockchainTestnetService {
         `Successfully staked ${amount} CARB tokens for ${lockPeriodDays} days`,
         {
           label: 'View Transaction',
-          onClick: () => window.open(`${SEPOLIA_EXPLORER}/tx/${mockTxHash}`, '_blank')
+          onClick: () => window.open(`${SEPOLIA_EXPLORER}/tx/${tx.hash}`, '_blank')
         }
       );
 
-      return mockTxHash;
+      return tx.hash;
     } catch (error) {
       console.error('Token staking failed:', error);
       notificationService.error(
         'Staking Failed',
-        'Failed to stake tokens. Please try again.'
+        `Failed to stake tokens: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
       return null;
     }
@@ -425,23 +441,24 @@ export class BlockchainTestnetService {
         throw new Error('Contract not initialized');
       }
 
-      // Simulate transaction
-      const mockTxHash = '0x' + Math.random().toString(16).substr(2, 64);
-      
       notificationService.info(
         'Transaction Submitted',
         'Offsetting carbon...'
       );
 
-      // Simulate transaction delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call the actual offset function
+      const tx = await this.contract.offsetCarbon(
+        ethers.parseEther(amount.toString()),
+        project
+      );
+      await tx.wait();
 
       analyticsService.track({
         name: 'carbon_offset',
         properties: {
           amount,
           project,
-          txHash: mockTxHash
+          txHash: tx.hash
         }
       });
 
@@ -450,16 +467,16 @@ export class BlockchainTestnetService {
         `Successfully offset ${amount} tons of CO₂ through ${project}`,
         {
           label: 'View Transaction',
-          onClick: () => window.open(`${SEPOLIA_EXPLORER}/tx/${mockTxHash}`, '_blank')
+          onClick: () => window.open(`${SEPOLIA_EXPLORER}/tx/${tx.hash}`, '_blank')
         }
       );
 
-      return mockTxHash;
+      return tx.hash;
     } catch (error) {
       console.error('Carbon offset failed:', error);
       notificationService.error(
         'Offset Failed',
-        'Failed to offset carbon. Please try again.'
+        `Failed to offset carbon: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
       return null;
     }
@@ -486,32 +503,30 @@ export class BlockchainTestnetService {
         throw new Error('Contract not initialized');
       }
 
-      // Simulate transaction
-      const mockTxHash = '0x' + Math.random().toString(16).substr(2, 64);
-      
       notificationService.info(
         'Transaction Submitted',
         'Claiming staking rewards...'
       );
 
-      // Simulate transaction delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call the actual claim rewards function
+      const tx = await this.contract.claimRewards();
+      await tx.wait();
 
       notificationService.success(
         'Rewards Claimed!',
         'Successfully claimed your staking rewards',
         {
           label: 'View Transaction',
-          onClick: () => window.open(`${SEPOLIA_EXPLORER}/tx/${mockTxHash}`, '_blank')
+          onClick: () => window.open(`${SEPOLIA_EXPLORER}/tx/${tx.hash}`, '_blank')
         }
       );
 
-      return mockTxHash;
+      return tx.hash;
     } catch (error) {
       console.error('Reward claiming failed:', error);
       notificationService.error(
         'Claim Failed',
-        'Failed to claim rewards. Please try again.'
+        `Failed to claim rewards: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
       return null;
     }
