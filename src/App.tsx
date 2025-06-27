@@ -14,6 +14,7 @@ import Analytics from './components/Analytics';
 import Profile from './components/Profile';
 import BlockchainDashboard from './components/BlockchainDashboard';
 import BlockchainTestnetDashboard from './components/BlockchainTestnetDashboard';
+import BlockchainProductionGuide from './components/BlockchainProductionGuide';
 import LoadingSpinner from './components/LoadingSpinner';
 import NotificationContainer from './components/NotificationContainer';
 import { UserPortfolio } from './types';
@@ -22,7 +23,7 @@ import { localStorageService } from './services/localStorage';
 import { config } from './config/environment';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('production-guide');
   const [isLoading, setIsLoading] = useState(true);
   const [portfolio, setPortfolio] = useState<UserPortfolio>({
     totalCredits: 1247,
@@ -113,6 +114,8 @@ function App() {
         return config.features.blockchainEnabled ? <BlockchainDashboard /> : <Dashboard portfolio={portfolio} />;
       case 'blockchain-testnet':
         return <BlockchainTestnetDashboard />;
+      case 'production-guide':
+        return <BlockchainProductionGuide />;
       case 'analytics':
         return <Analytics />;
       case 'profile':

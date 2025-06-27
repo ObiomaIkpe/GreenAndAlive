@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BarChart3, ShoppingCart, Calculator, Brain, Activity, User, Settings, Blocks, Lightbulb, TestTube, Recycle, Building2, Shield, Menu, X, Network } from 'lucide-react';
+import { BarChart3, ShoppingCart, Calculator, Brain, Activity, User, Settings, Blocks, Lightbulb, TestTube, Recycle, Building2, Shield, Menu, X, Network, Rocket } from 'lucide-react';
 
 interface Props {
   activeTab: string;
@@ -18,6 +18,7 @@ const navItems = [
   { id: 'verification', label: 'Verification', icon: Shield },
   { id: 'blockchain', label: 'Blockchain', icon: Blocks },
   { id: 'blockchain-testnet', label: 'Testnet', icon: Network },
+  { id: 'production-guide', label: 'Production Guide', icon: Rocket },
   { id: 'analytics', label: 'Analytics', icon: Activity },
   { id: 'profile', label: 'Profile', icon: User }
 ];
