@@ -42,25 +42,80 @@ export default function Navigation({ activeTab, setActiveTab }: Props) {
             </div>
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex space-x-1 flex-1 justify-center max-w-4xl mx-8">
+          {/* Desktop Navigation - Hidden on smaller screens */}
+          <div className="hidden xl:flex space-x-1 flex-1 justify-center max-w-5xl mx-8">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center space-x-2 px-2 xl:px-3 py-2 rounded-lg font-medium text-xs transition-all duration-200 ${
+                  className={`flex items-center space-x-1.5 px-2.5 py-2 rounded-lg font-medium text-xs transition-all duration-200 whitespace-nowrap ${
                     activeTab === item.id
                       ? 'bg-emerald-100 text-emerald-700 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden xl:inline">{item.label}</span>
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  <span className="hidden 2xl:inline">{item.label}</span>
                 </button>
               );
             })}
+          </div>
+
+          {/* Tablet Navigation - Show fewer items */}
+          <div className="hidden lg:flex xl:hidden space-x-1 flex-1 justify-center max-w-4xl mx-8">
+            {navItems.slice(0, 8).map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`flex items-center justify-center p-2.5 rounded-lg font-medium text-xs transition-all duration-200 ${
+                    activeTab === item.id
+                      ? 'bg-emerald-100 text-emerald-700 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                  title={item.label}
+                >
+                  <Icon className="w-4 h-4" />
+                </button>
+              );
+            })}
+            {/* More menu for remaining items */}
+            <div className="relative">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="flex items-center justify-center p-2.5 rounded-lg font-medium text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200"
+                title="More options"
+              >
+                <Menu className="w-4 h-4" />
+              </button>
+              {mobileMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                  {navItems.slice(8).map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setActiveTab(item.id);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`flex items-center space-x-3 w-full px-4 py-2 text-sm transition-colors duration-200 ${
+                          activeTab === item.id
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Desktop Settings */}
@@ -119,6 +174,14 @@ export default function Navigation({ activeTab, setActiveTab }: Props) {
           </div>
         )}
       </div>
+
+      {/* Click outside to close mobile menu */}
+      {mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-25 z-40 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
     </nav>
   );
 }
