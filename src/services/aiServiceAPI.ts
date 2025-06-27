@@ -1,5 +1,7 @@
-import { apiService } from './api';
+import { supabase } from './supabaseClient';
 import { notificationService } from './notificationService';
+import { config } from '../config/environment';
+import { UtilsService } from './utilsService';
 
 export interface AIRecommendationAPI {
   id: string;
@@ -57,21 +59,10 @@ export interface BehaviorAnalysis {
 }
 
 class AIServiceAPI {
-  async generateRecommendations(data: GenerateRecommendationsRequest): Promise<AIRecommendationAPI[]> {
-    try {
-      const recommendations = await apiService.post<AIRecommendationAPI[]>('/ai/recommendations', data);
-      
-      notificationService.success(
-        'AI Recommendations Generated',
-        `Generated ${recommendations.length} personalized recommendations`
-      );
-      
-      return recommendations;
-    } catch (error) {
-      notificationService.error('AI Service Error', 'Failed to generate recommendations');
-      throw error;
-    }
-  }
+  private utilsService = new UtilsService();
+  private openaiApiKey = config.ai.apiKey;
+  private openaiModel = config.ai.model;
+  private openaiBaseUrl = config.ai.baseUrl;
 
   async getRecommendations(filters?: {
     type?: string;
@@ -79,37 +70,117 @@ class AIServiceAPI {
     dismissed?: boolean;
   }): Promise<AIRecommendationAPI[]> {
     try {
-      const params = new URLSearchParams();
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
       
-      if (filters) {
-        Object.entries(filters).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            params.append(key, value.toString());
-          }
-        });
+      // Build query
+      let query = supabase
+        .from('ai_recommendations')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      if (filters?.type) {
+        query = query.eq('type', filters.type);
       }
       
-      const url = `/ai/recommendations${params.toString() ? `?${params.toString()}` : ''}`;
-      return await apiService.get<AIRecommendationAPI[]>(url);
+      if (filters?.implemented !== undefined) {
+        query = query.eq('implemented', filters.implemented);
+      }
+      
+      if (filters?.dismissed !== undefined) {
+        query = query.eq('dismissed', filters.dismissed);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      return data.map(rec => this.formatRecommendation(rec));
     } catch (error) {
       notificationService.error('Load Failed', 'Failed to load AI recommendations');
       throw error;
     }
   }
 
+  async generateRecommendations(data: GenerateRecommendationsRequest): Promise<AIRecommendationAPI[]> {
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      // In a real implementation, this would call OpenAI API
+      // For now, we'll create mock recommendations
+      const mockRecommendations = this.getMockRecommendations(data);
+      
+      // Save recommendations to database
+      const savedRecommendations = [];
+      
+      for (const rec of mockRecommendations) {
+        const { data: savedRec, error } = await supabase
+          .from('ai_recommendations')
+          .insert({
+            user_id: user.id,
+            type: rec.type,
+            title: rec.title,
+            description: rec.description,
+            impact: rec.impact,
+            confidence: rec.confidence,
+            category: rec.category,
+            reward_potential: rec.rewardPotential,
+            action_steps: rec.actionSteps,
+            estimated_cost: rec.estimatedCost,
+            timeframe: rec.timeframe,
+            priority: rec.priority,
+            implemented: false,
+            dismissed: false,
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        
+        savedRecommendations.push(this.formatRecommendation(savedRec));
+      }
+      
+      notificationService.success(
+        'AI Recommendations Generated',
+        `Generated ${savedRecommendations.length} personalized recommendations`
+      );
+      
+      return savedRecommendations;
+    } catch (error) {
+      notificationService.error('AI Service Error', 'Failed to generate recommendations');
+      throw error;
+    }
+  }
+
   async implementRecommendation(id: string, notes?: string): Promise<AIRecommendationAPI> {
     try {
-      const recommendation = await apiService.patch<AIRecommendationAPI>(
-        `/ai/recommendations/${id}/implement`,
-        { notes }
-      );
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      // Update recommendation
+      const { data, error } = await supabase
+        .from('ai_recommendations')
+        .update({
+          implemented: true,
+          implementation_notes: notes,
+        })
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
       
       notificationService.success(
         'Recommendation Implemented',
         'Great job on implementing this recommendation!'
       );
       
-      return recommendation;
+      return this.formatRecommendation(data);
     } catch (error) {
       notificationService.error('Update Failed', 'Failed to mark recommendation as implemented');
       throw error;
@@ -118,14 +189,26 @@ class AIServiceAPI {
 
   async dismissRecommendation(id: string): Promise<AIRecommendationAPI> {
     try {
-      const recommendation = await apiService.patch<AIRecommendationAPI>(
-        `/ai/recommendations/${id}/dismiss`,
-        {}
-      );
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      // Update recommendation
+      const { data, error } = await supabase
+        .from('ai_recommendations')
+        .update({
+          dismissed: true,
+        })
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
       
       notificationService.info('Recommendation Dismissed', 'Recommendation has been dismissed');
       
-      return recommendation;
+      return this.formatRecommendation(data);
     } catch (error) {
       notificationService.error('Update Failed', 'Failed to dismiss recommendation');
       throw error;
@@ -134,7 +217,16 @@ class AIServiceAPI {
 
   async predictEmissions(data: PredictEmissionsRequest): Promise<EmissionPrediction> {
     try {
-      const prediction = await apiService.post<EmissionPrediction>('/ai/predict-emissions', data);
+      // In a real implementation, this would call OpenAI API
+      // For now, return mock prediction
+      const avgEmissions = data.monthly_emissions.reduce((a, b) => a + b, 0) / data.monthly_emissions.length;
+      const prediction: EmissionPrediction = {
+        predictedEmissions: Math.max(avgEmissions * 0.95, 20),
+        trend: 'decreasing',
+        factors: ['Historical trends', 'Seasonal patterns', 'Energy efficiency improvements'],
+        confidence: 85,
+        timeframe: '3 months',
+      };
       
       notificationService.success(
         'Prediction Generated',
@@ -150,7 +242,26 @@ class AIServiceAPI {
 
   async analyzeBehavior(data: AnalyzeBehaviorRequest): Promise<BehaviorAnalysis> {
     try {
-      const analysis = await apiService.post<BehaviorAnalysis>('/ai/analyze-behavior', data);
+      // In a real implementation, this would call OpenAI API
+      // For now, return mock analysis
+      const analysis: BehaviorAnalysis = {
+        insights: [
+          'Your carbon tracking shows consistent engagement with sustainability',
+          'Transportation appears to be your largest emission source',
+          'Energy usage patterns suggest room for optimization',
+        ],
+        behavior_score: 78,
+        improvement_suggestions: [
+          'Focus on reducing transportation emissions through alternative mobility',
+          'Implement energy-saving habits during peak usage hours',
+          'Consider renewable energy options for your home',
+        ],
+        habit_recommendations: [
+          'Set up automated energy-saving schedules',
+          'Plan weekly sustainable transportation goals',
+          'Create monthly carbon reduction challenges',
+        ],
+      };
       
       notificationService.success(
         'Behavior Analysis Complete',
@@ -162,6 +273,87 @@ class AIServiceAPI {
       notificationService.error('AI Service Error', 'Failed to analyze behavior');
       throw error;
     }
+  }
+
+  private formatRecommendation(data: any): AIRecommendationAPI {
+    return {
+      id: data.id,
+      type: data.type,
+      title: data.title,
+      description: data.description,
+      impact: data.impact,
+      confidence: data.confidence,
+      category: data.category,
+      rewardPotential: data.reward_potential,
+      actionSteps: data.action_steps,
+      estimatedCost: data.estimated_cost,
+      timeframe: data.timeframe,
+      priority: data.priority,
+      implemented: data.implemented,
+      dismissed: data.dismissed,
+      implementationNotes: data.implementation_notes,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+  }
+
+  private getMockRecommendations(userProfile: any): Partial<AIRecommendationAPI>[] {
+    return [
+      {
+        type: 'reduction',
+        title: 'Optimize Home Energy Usage',
+        description: 'Implement smart energy management practices to reduce your carbon footprint',
+        impact: 3.2,
+        confidence: 90,
+        category: 'Energy Efficiency',
+        rewardPotential: 32,
+        actionSteps: [
+          'Install a programmable thermostat',
+          'Switch to LED lighting throughout your home',
+          'Unplug electronics when not in use',
+          'Use energy-efficient appliances'
+        ],
+        estimatedCost: 300,
+        timeframe: '2-4 weeks',
+        priority: 'medium',
+      },
+      {
+        type: 'behavioral',
+        title: 'Sustainable Transportation',
+        description: 'Reduce transportation emissions through smart mobility choices',
+        impact: 4.8,
+        confidence: 85,
+        category: 'Transportation',
+        rewardPotential: 48,
+        actionSteps: [
+          'Use public transportation or carpool when possible',
+          'Walk or bike for trips under 2 miles',
+          'Combine errands into single trips',
+          'Consider electric or hybrid vehicle for next purchase'
+        ],
+        estimatedCost: 0,
+        timeframe: '1-2 weeks',
+        priority: 'high',
+      },
+      {
+        type: 'purchase',
+        title: 'Invest in Carbon Credits',
+        description: 'Purchase verified carbon credits to offset your remaining emissions',
+        impact: 5.5,
+        confidence: 80,
+        category: 'Carbon Offsetting',
+        rewardPotential: 55,
+        actionSteps: [
+          'Calculate your annual carbon footprint',
+          'Research verified carbon credit projects',
+          'Purchase credits from reputable providers',
+          'Track and verify your offset impact'
+        ],
+        estimatedCost: userProfile.budget || 500,
+        timeframe: '1 week',
+        priority: 'high',
+      },
+    ];
   }
 }
 

@@ -5,9 +5,15 @@ export const config = {
   
   // API Configuration
   api: {
-    baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1',
+    baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
     timeout: 30000,
     retryAttempts: 3
+  },
+  
+  // Supabase Configuration
+  supabase: {
+    url: import.meta.env.VITE_SUPABASE_URL || '',
+    anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
   },
   
   // AI Configuration
