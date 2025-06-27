@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Brain, TrendingUp, Lightbulb, Target, Coins, RefreshCw, AlertCircle, CheckCircle, X } from 'lucide-react';
-import { aiService, AIRecommendation } from '../services/aiService';
+import { aiServiceAPI, AIRecommendationAPI } from '../services/aiServiceAPI';
 import { useAsync } from '../hooks/useAsync';
 import { localStorageService } from '../services/localStorage';
 import { notificationService } from '../services/notificationService';
@@ -16,22 +16,29 @@ export default function AIRecommendations() {
   });
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [implementedRecommendations, setImplementedRecommendations] = useState<Set<string>>(new Set());
-  const [dismissedRecommendations, setDismissedRecommendations] = useState<Set<string>>(new Set());
+  const [recommendations, setRecommendations] = useState<AIRecommendationAPI[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadRecommendations = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await aiServiceAPI.getRecommendations({ dismissed: false });
+      setRecommendations(data);
+    } catch (err) {
+      setError('Failed to load recommendations');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const userData = localStorageService.getUserData();
-    setImplementedRecommendations(new Set(userData.aiRecommendations.implemented));
-    setDismissedRecommendations(new Set(userData.aiRecommendations.dismissed));
-  }, []);
-
-  const { data: recommendations, loading, error, refetch } = useAsync(
-    () => aiService.generateRecommendations(userProfile),
-    [userProfile, refreshTrigger]
-  );
+    loadRecommendations();
+  }, [refreshTrigger]);
 
   const { data: prediction } = useAsync(
-    () => aiService.predictCarbonEmissions({
+    () => aiServiceAPI.predictEmissions({
       monthly_emissions: [45, 42, 48, 41, 39, 37, 35, 33, 31, 29, 27, 25],
       activities: ['electricity', 'transportation', 'heating'],
       seasonal_factors: true
@@ -40,50 +47,57 @@ export default function AIRecommendations() {
   );
 
   const { data: insights } = useAsync(
-    () => aiService.analyzeEfficiency({
-      emissions: userProfile.carbonFootprint,
-      activities: {
-        electricity: 12.5,
-        transportation: 8.2,
-        heating: 6.7,
-        air_travel: 5.0
-      },
-      location: userProfile.location,
-      demographics: 'urban_professional'
+    () => aiServiceAPI.analyzeBehavior({
+      daily_activities: [
+        { date: '2024-01-15', electricity: 12, transport: 8, heating: 5 },
+        { date: '2024-01-14', electricity: 11, transport: 12, heating: 6 }
+      ],
+      patterns: ['weekend_spikes', 'morning_commute'],
+      goals: ['reduce_transport', 'carbon_neutral']
     }),
     []
   );
 
   const handleRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
+  };
+
+  const generateNewRecommendations = async () => {
+    setLoading(true);
+    try {
+      await aiServiceAPI.generateRecommendations(userProfile);
+      await loadRecommendations();
+    } catch (err) {
+      setError('Failed to generate recommendations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefreshOld = () => {
+    setRefreshTrigger(prev => prev + 1);
     notificationService.info('Refreshing Recommendations', 'Getting latest AI recommendations...');
   };
 
-  const handleImplement = (recommendationId: string, title: string) => {
-    localStorageService.implementRecommendation(recommendationId);
-    setImplementedRecommendations(prev => new Set([...prev, recommendationId]));
-    
-    notificationService.success(
-      'Recommendation Implemented',
-      `"${title}" has been marked as implemented. Great job!`,
-      {
-        label: 'View Progress',
-        onClick: () => console.log('Navigate to progress')
-      }
-    );
+  const handleImplement = async (recommendationId: string, title: string) => {
+    try {
+      await aiServiceAPI.implementRecommendation(recommendationId);
+      await loadRecommendations();
+    } catch (err) {
+      notificationService.error('Failed to implement', 'Could not mark recommendation as implemented');
+    }
   };
 
-  const handleDismiss = (recommendationId: string, title: string) => {
-    localStorageService.dismissRecommendation(recommendationId);
-    setDismissedRecommendations(prev => new Set([...prev, recommendationId]));
-    
-    notificationService.info(
-      'Recommendation Dismissed',
-      `"${title}" has been dismissed`
-    );
+  const handleDismiss = async (recommendationId: string, title: string) => {
+    try {
+      await aiServiceAPI.dismissRecommendation(recommendationId);
+      await loadRecommendations();
+    } catch (err) {
+      notificationService.error('Failed to dismiss', 'Could not dismiss recommendation');
+    }
   };
 
-  const handleLearnMore = (recommendation: AIRecommendation) => {
+  const handleLearnMore = (recommendation: AIRecommendationAPI) => {
     notificationService.info(
       'Learn More',
       `Opening detailed information about "${recommendation.title}"`
@@ -112,10 +126,7 @@ export default function AIRecommendations() {
     critical: 'border-l-red-400'
   };
 
-  // Filter out dismissed recommendations
-  const visibleRecommendations = recommendations?.filter(rec => 
-    !dismissedRecommendations.has(rec.id)
-  ) || [];
+  const visibleRecommendations = recommendations.filter(rec => !rec.dismissed);
 
   if (loading) {
     return (
@@ -134,9 +145,9 @@ export default function AIRecommendations() {
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">AI Service Unavailable</h3>
-          <p className="text-gray-600 mb-4">Unable to generate recommendations at this time.</p>
+          <p className="text-gray-600 mb-4">{error}</p>
           <button
-            onClick={() => refetch()}
+            onClick={handleRefresh}
             className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
           >
             Try Again
@@ -161,14 +172,24 @@ export default function AIRecommendations() {
                 <p className="text-sm text-gray-600">Personalized insights powered by advanced machine learning</p>
               </div>
             </div>
-            <button
-              onClick={handleRefresh}
-              disabled={loading}
-              className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 w-full sm:w-auto justify-center"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 w-full sm:w-auto justify-center"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span>Refresh</span>
+              </button>
+              <button
+                onClick={generateNewRecommendations}
+                disabled={loading}
+                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 disabled:opacity-50 w-full sm:w-auto justify-center"
+              >
+                <Brain className="w-4 h-4" />
+                <span>Generate New</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -177,15 +198,15 @@ export default function AIRecommendations() {
           <div className="p-4 sm:p-6 bg-gradient-to-r from-indigo-50 to-purple-50">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="text-center">
-                <div className="text-xl sm:text-2xl font-bold text-indigo-600">{insights.carbonEfficiencyScore}</div>
+                <div className="text-xl sm:text-2xl font-bold text-indigo-600">{insights.behavior_score}</div>
                 <div className="text-xs sm:text-sm text-gray-600">Efficiency Score</div>
               </div>
               <div className="text-center">
-                <div className="text-xl sm:text-2xl font-bold text-purple-600">{insights.improvementPotential}%</div>
+                <div className="text-xl sm:text-2xl font-bold text-purple-600">{insights.improvement_suggestions.length}</div>
                 <div className="text-xs sm:text-sm text-gray-600">Improvement Potential</div>
               </div>
               <div className="text-center">
-                <div className="text-xl sm:text-2xl font-bold text-emerald-600">{insights.benchmarkComparison.similar_users}</div>
+                <div className="text-xl sm:text-2xl font-bold text-emerald-600">{insights.insights.length}</div>
                 <div className="text-xs sm:text-sm text-gray-600">vs Similar Users</div>
               </div>
               <div className="text-center">
@@ -237,7 +258,7 @@ export default function AIRecommendations() {
               <p className="text-sm text-gray-600">AI-generated suggestions based on your profile and behavior patterns</p>
             </div>
             <div className="text-sm text-gray-500">
-              {implementedRecommendations.size} implemented • {dismissedRecommendations.size} dismissed
+              {recommendations.filter(r => r.implemented).length} implemented • {recommendations.filter(r => r.dismissed).length} dismissed
             </div>
           </div>
         </div>
@@ -249,7 +270,7 @@ export default function AIRecommendations() {
                 <div 
                   key={rec.id} 
                   className={`border-l-4 ${priorityColors[rec.priority]} border border-gray-200 rounded-lg p-4 hover:border-indigo-300 transition-all duration-200 ${
-                    implementedRecommendations.has(rec.id) ? 'bg-green-50' : ''
+                    rec.implemented ? 'bg-green-50' : ''
                   }`}
                 >
                   <div className="flex items-start justify-between mb-3">
@@ -260,7 +281,7 @@ export default function AIRecommendations() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center space-x-2 mb-1">
                           <h3 className="font-semibold text-gray-900">{rec.title}</h3>
-                          {implementedRecommendations.has(rec.id) && (
+                          {rec.implemented && (
                             <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
                           )}
                         </div>
@@ -358,7 +379,7 @@ export default function AIRecommendations() {
                       >
                         Learn More
                       </button>
-                      {!implementedRecommendations.has(rec.id) ? (
+                      {!rec.implemented ? (
                         <button 
                           onClick={() => handleImplement(rec.id, rec.title)}
                           className="px-3 py-1 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors duration-200"
@@ -381,7 +402,7 @@ export default function AIRecommendations() {
               <p className="text-gray-600">No recommendations available</p>
               <p className="text-sm text-gray-500 mt-1">All recommendations have been implemented or dismissed</p>
               <button
-                onClick={handleRefresh}
+                onClick={generateNewRecommendations}
                 className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200"
               >
                 Get New Recommendations

@@ -1,59 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, MapPin, Shield, Star, Filter, Heart, Trash2, Plus, Minus } from 'lucide-react';
-import { CarbonCredit } from '../types';
-import { localStorageService, CartItem } from '../services/localStorage';
+import { marketplaceService, CarbonCreditAPI, PurchaseData } from '../services/marketplaceService';
 import { notificationService } from '../services/notificationService';
+import { authService } from '../services/authService';
 
-const mockCredits: CarbonCredit[] = [
-  {
-    id: '1',
-    type: 'forest',
-    price: 45.50,
-    quantity: 1000,
-    location: 'Amazon Rainforest, Brazil',
-    verified: true,
-    description: 'Protecting 500 hectares of primary rainforest',
-    vintage: 2024,
-    seller: 'EcoForest Initiative',
-    certification: 'VCS'
-  },
-  {
-    id: '2',
-    type: 'renewable',
-    price: 32.75,
-    quantity: 2500,
-    location: 'Wind Farm, Texas',
-    verified: true,
-    description: 'Clean energy from wind turbines',
-    vintage: 2024,
-    seller: 'GreenWind Energy',
-    certification: 'Gold Standard'
-  },
-  {
-    id: '3',
-    type: 'efficiency',
-    price: 28.90,
-    quantity: 800,
-    location: 'Industrial Complex, California',
-    verified: true,
-    description: 'Energy efficiency improvements in manufacturing',
-    vintage: 2023,
-    seller: 'EcoTech Solutions',
-    certification: 'CAR'
-  },
-  {
-    id: '4',
-    type: 'capture',
-    price: 85.25,
-    quantity: 500,
-    location: 'Direct Air Capture, Iceland',
-    verified: true,
-    description: 'Direct CO₂ capture and storage technology',
-    vintage: 2024,
-    seller: 'CarbonCapture Inc.',
-    certification: 'VCS'
-  }
-];
+interface CartItem {
+  id: string;
+  type: string;
+  price: number;
+  quantity: number;
+  description: string;
+  seller: string;
+}
 
 const typeColors = {
   forest: 'bg-green-100 text-green-800',
@@ -65,17 +23,39 @@ const typeColors = {
 export default function Marketplace() {
   const [selectedType, setSelectedType] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('price');
+  const [credits, setCredits] = useState<CarbonCreditAPI[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [showCart, setShowCart] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const userData = localStorageService.getUserData();
-    setCart(userData.marketplace.cart);
-    setWishlist(userData.marketplace.wishlist);
+    loadCredits();
   }, []);
 
-  const filteredCredits = mockCredits.filter(credit => 
+  useEffect(() => {
+    loadCredits();
+  }, [selectedType, sortBy]);
+
+  const loadCredits = async () => {
+    setLoading(true);
+    try {
+      const filters = {
+        type: selectedType === 'all' ? undefined : selectedType,
+        sortBy: sortBy === 'price' ? 'price' : sortBy,
+        sortOrder: 'ASC' as const,
+        limit: 20
+      };
+      const data = await marketplaceService.getCredits(filters);
+      setCredits(data);
+    } catch (error) {
+      console.error('Failed to load credits:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredCredits = credits.filter(credit => 
     selectedType === 'all' || credit.type === selectedType
   );
 
@@ -88,7 +68,12 @@ export default function Marketplace() {
     }
   });
 
-  const addToCart = (credit: CarbonCredit, quantity: number = 1) => {
+  const addToCart = (credit: CarbonCreditAPI, quantity: number = 1) => {
+    if (!authService.isAuthenticated()) {
+      notificationService.warning('Login Required', 'Please log in to add items to cart');
+      return;
+    }
+
     const cartItem: CartItem = {
       id: credit.id,
       type: credit.type,
@@ -98,9 +83,16 @@ export default function Marketplace() {
       seller: credit.seller
     };
 
-    localStorageService.addToCart(cartItem);
-    const updatedData = localStorageService.getUserData();
-    setCart(updatedData.marketplace.cart);
+    const existingItem = cart.find(item => item.id === credit.id);
+    if (existingItem) {
+      setCart(prev => prev.map(item => 
+        item.id === credit.id 
+          ? { ...item, quantity: item.quantity + quantity }
+          : item
+      ));
+    } else {
+      setCart(prev => [...prev, cartItem]);
+    }
 
     notificationService.success(
       'Added to Cart',
@@ -109,60 +101,71 @@ export default function Marketplace() {
   };
 
   const removeFromCart = (itemId: string) => {
-    localStorageService.removeFromCart(itemId);
-    const updatedData = localStorageService.getUserData();
-    setCart(updatedData.marketplace.cart);
+    setCart(prev => prev.filter(item => item.id !== itemId));
 
     notificationService.info('Removed from Cart', 'Item removed from your cart');
   };
 
   const updateCartQuantity = (itemId: string, quantity: number) => {
-    localStorageService.updateCartQuantity(itemId, quantity);
-    const updatedData = localStorageService.getUserData();
-    setCart(updatedData.marketplace.cart);
+    if (quantity <= 0) {
+      removeFromCart(itemId);
+    } else {
+      setCart(prev => prev.map(item => 
+        item.id === itemId ? { ...item, quantity } : item
+      ));
+    }
   };
 
   const toggleWishlist = (creditId: string) => {
-    localStorageService.toggleWishlist(creditId);
-    const updatedData = localStorageService.getUserData();
-    setWishlist(updatedData.marketplace.wishlist);
+    const isInWishlist = wishlist.includes(creditId);
+    if (isInWishlist) {
+      setWishlist(prev => prev.filter(id => id !== creditId));
+    } else {
+      setWishlist(prev => [...prev, creditId]);
+    }
 
-    const isAdded = !wishlist.includes(creditId);
+    const isAdded = !isInWishlist;
     notificationService.info(
       isAdded ? 'Added to Wishlist' : 'Removed from Wishlist',
       isAdded ? 'Credit added to your wishlist' : 'Credit removed from your wishlist'
     );
   };
 
-  const checkout = () => {
+  const checkout = async () => {
+    if (!authService.isAuthenticated()) {
+      notificationService.warning('Login Required', 'Please log in to complete your purchase');
+      return;
+    }
+
     if (cart.length === 0) {
       notificationService.warning('Empty Cart', 'Add some credits to your cart before checkout');
       return;
     }
 
-    const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
-
-    // Simulate purchase
-    const purchase = {
-      id: `purchase-${Date.now()}`,
-      creditId: 'multiple',
-      quantity: totalQuantity,
-      totalPrice,
-      date: new Date().toISOString(),
-      status: 'completed' as const
-    };
-
-    localStorageService.addPurchase(purchase);
-    localStorageService.clearCart();
-    
-    setCart([]);
-    setShowCart(false);
-
-    notificationService.success(
-      'Purchase Successful!',
-      `Successfully purchased ${totalQuantity} carbon credits for $${totalPrice.toFixed(2)}`
-    );
+    try {
+      // Process each cart item as a separate purchase
+      for (const item of cart) {
+        const purchaseData: PurchaseData = {
+          carbonCreditId: item.id,
+          quantity: item.quantity,
+          notes: `Purchased via marketplace cart`
+        };
+        await marketplaceService.purchaseCredit(purchaseData);
+      }
+      
+      setCart([]);
+      setShowCart(false);
+      
+      const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+      const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      
+      notificationService.success(
+        'Purchase Successful!',
+        `Successfully purchased ${totalQuantity} carbon credits for $${totalPrice.toFixed(2)}`
+      );
+    } catch (error) {
+      console.error('Checkout failed:', error);
+    }
   };
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -293,6 +296,12 @@ export default function Marketplace() {
       )}
 
       {/* Credit Cards */}
+      {loading ? (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading carbon credits...</p>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
         {sortedCredits.map((credit) => (
           <div key={credit.id} className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300">
@@ -358,7 +367,7 @@ export default function Marketplace() {
                   <Star className="w-4 h-4 text-yellow-400 fill-current" />
                   <Star className="w-4 h-4 text-yellow-400 fill-current" />
                   <Star className="w-4 h-4 text-gray-300" />
-                  <span className="text-sm text-gray-600 ml-1">4.0 (124 reviews)</span>
+                  <span className="text-sm text-gray-600 ml-1">{credit.rating?.toFixed(1) || '4.0'} ({credit.reviewCount || 124} reviews)</span>
                 </div>
                 
                 <div className="flex space-x-2">
@@ -375,6 +384,7 @@ export default function Marketplace() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Market Statistics */}
       <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">

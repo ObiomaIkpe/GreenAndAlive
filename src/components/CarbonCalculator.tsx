@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Calculator, Zap, Car, Home, Plane, Save, History, TrendingDown } from 'lucide-react';
-import { localStorageService } from '../services/localStorage';
+import { carbonService, CarbonFootprintData } from '../services/carbonService';
 import { notificationService } from '../services/notificationService';
+import { authService } from '../services/authService';
 
 interface EmissionSource {
   category: string;
@@ -28,29 +29,47 @@ export default function CarbonCalculator() {
   const [history, setHistory] = useState<CalculationHistory[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Load saved data
-    const userData = localStorageService.getUserData();
-    if (userData.carbonFootprint.lastCalculated) {
-      setSources(prev => [
-        { ...prev[0], value: userData.carbonFootprint.electricity },
-        { ...prev[1], value: userData.carbonFootprint.transportation },
-        { ...prev[2], value: userData.carbonFootprint.heating },
-        { ...prev[3], value: userData.carbonFootprint.airTravel }
-      ]);
-    }
-
-    // Load calculation history from localStorage
-    const savedHistory = localStorage.getItem('carbonai_calculation_history');
-    if (savedHistory) {
-      try {
-        setHistory(JSON.parse(savedHistory));
-      } catch (error) {
-        console.warn('Failed to load calculation history:', error);
-      }
-    }
+    loadLatestFootprint();
+    loadHistory();
   }, []);
+
+  const loadLatestFootprint = async () => {
+    try {
+      const latest = await carbonService.getLatestFootprint();
+      if (latest) {
+        setSources(prev => [
+          { ...prev[0], value: latest.electricity },
+          { ...prev[1], value: latest.transportation },
+          { ...prev[2], value: latest.heating },
+          { ...prev[3], value: latest.airTravel }
+        ]);
+      }
+    } catch (error) {
+      console.warn('Failed to load latest footprint:', error);
+    }
+  };
+
+  const loadHistory = async () => {
+    try {
+      const footprints = await carbonService.getFootprintHistory();
+      const historyData = footprints.map(fp => ({
+        date: fp.createdAt,
+        totalEmissions: fp.totalEmissions,
+        breakdown: {
+          electricity: fp.electricity,
+          transportation: fp.transportation,
+          heating: fp.heating,
+          airTravel: fp.airTravel
+        }
+      }));
+      setHistory(historyData);
+    } catch (error) {
+      console.warn('Failed to load history:', error);
+    }
+  };
 
   const updateSource = (index: number, newValue: number) => {
     const newSources = [...sources];
@@ -61,37 +80,30 @@ export default function CarbonCalculator() {
 
   const totalEmissions = sources.reduce((total, source) => total + (source.value * source.emissions), 0);
 
-  const saveCalculation = () => {
-    const breakdown = {
+  const saveCalculation = async () => {
+    if (!authService.isAuthenticated()) {
+      notificationService.warning('Login Required', 'Please log in to save your carbon footprint calculation');
+      return;
+    }
+
+    setIsLoading(true);
+    
+    const data: CarbonFootprintData = {
       electricity: sources[0].value,
       transportation: sources[1].value,
       heating: sources[2].value,
       airTravel: sources[3].value
     };
 
-    // Save to user data
-    localStorageService.updateCarbonFootprint({
-      ...breakdown,
-      totalEmissions
-    });
-
-    // Add to history
-    const newHistoryEntry: CalculationHistory = {
-      date: new Date().toISOString(),
-      totalEmissions,
-      breakdown
-    };
-
-    const updatedHistory = [newHistoryEntry, ...history].slice(0, 10); // Keep last 10 calculations
-    setHistory(updatedHistory);
-    localStorage.setItem('carbonai_calculation_history', JSON.stringify(updatedHistory));
-
-    setHasUnsavedChanges(false);
-    
-    notificationService.success(
-      'Calculation Saved',
-      `Your carbon footprint of ${totalEmissions.toFixed(1)} tons CO₂/year has been saved.`
-    );
+    try {
+      await carbonService.calculateFootprint(data);
+      await loadHistory();
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error('Failed to save calculation:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const loadFromHistory = (historyItem: CalculationHistory) => {
@@ -151,11 +163,11 @@ export default function CarbonCalculator() {
               
               <button
                 onClick={saveCalculation}
-                disabled={!hasUnsavedChanges}
+                disabled={!hasUnsavedChanges || isLoading}
                 className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="w-4 h-4" />
-                <span className="hidden sm:inline">Save</span>
+                <span className="hidden sm:inline">{isLoading ? 'Saving...' : 'Save'}</span>
               </button>
             </div>
           </div>
