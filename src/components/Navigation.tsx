@@ -1,153 +1,93 @@
-import React, { useState, useEffect } from 'react';
-import ErrorBoundary from './components/ErrorBoundary';
-import Navigation from './components/Navigation';
-import Dashboard from './components/Dashboard';
-import CarbonCalculator from './components/CarbonCalculator';
-import Marketplace from './components/Marketplace';
-import AIRecommendations from './components/AIRecommendations';
-import AIInsights from './components/AIInsights';
-import AITestDashboard from './components/AITestDashboard';
-import WasteDisposalTracker from './components/WasteDisposalTracker';
-import CorporateCompliance from './components/CorporateCompliance';
-import VerificationDashboard from './components/VerificationDashboard';
-import Analytics from './components/Analytics';
-import Profile from './components/Profile';
-import BlockchainDashboard from './components/BlockchainDashboard';
-import BlockchainTestnetDashboard from './components/BlockchainTestnetDashboard';
-import BlockchainProductionGuide from './components/BlockchainProductionGuide';
-import LoadingSpinner from './components/LoadingSpinner';
-import NotificationContainer from './components/NotificationContainer';
-import { UserPortfolio } from './types';
-import { analyticsService } from './services/analytics';
-import { localStorageService } from './services/localStorage';
-import { config } from './config/environment';
+import React from 'react';
+import { 
+  Home, 
+  Calculator, 
+  ShoppingCart, 
+  Brain, 
+  BarChart3, 
+  User, 
+  Leaf,
+  Trash2,
+  Building,
+  Shield,
+  Link,
+  TestTube,
+  Lightbulb,
+  BookOpen
+} from 'lucide-react';
 
-function App() {
-  const [activeTab, setActiveTab] = useState('production-guide');
-  const [blockchainReady, setBlockchainReady] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [portfolio, setPortfolio] = useState<UserPortfolio>({
-    totalCredits: 1247,
-    totalValue: 52850,
-    monthlyOffset: 18.5,
-    carbonFootprint: 32.4,
-    reductionGoal: 24.0,
-    achievements: [
-      'Carbon Neutral Champion - Achieved 3 consecutive months',
-      'Forest Protector - 100+ conservation credits purchased',
-      'Efficiency Expert - 30% emission reduction achieved'
-    ],
-    walletAddress: '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6',
-    tokenBalance: 1247,
-    stakingRewards: 156.5,
-    nftBadges: []
-  });
-
-  useEffect(() => {
-    // Initialize analytics
-    analyticsService.initialize();
-    
-    // Load user data from localStorage
-    const userData = localStorageService.getUserData();
-    setPortfolio(prev => ({
-      ...prev,
-      totalCredits: userData.portfolio.totalCredits,
-      totalValue: userData.portfolio.totalValue,
-      monthlyOffset: userData.portfolio.monthlyOffset,
-      carbonFootprint: userData.carbonFootprint.totalEmissions || prev.carbonFootprint,
-      reductionGoal: userData.portfolio.reductionGoal,
-      achievements: userData.portfolio.achievements
-    }));
-    
-    // Simulate app initialization
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    // Track page views
-    analyticsService.trackPageView(activeTab);
-  }, [activeTab]);
-
-  // Update portfolio when localStorage changes
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const userData = localStorageService.getUserData();
-      setPortfolio(prev => ({
-        ...prev,
-        totalCredits: userData.portfolio.totalCredits,
-        totalValue: userData.portfolio.totalValue,
-        monthlyOffset: userData.portfolio.monthlyOffset,
-        carbonFootprint: userData.carbonFootprint.totalEmissions || prev.carbonFootprint,
-        reductionGoal: userData.portfolio.reductionGoal,
-        achievements: userData.portfolio.achievements
-      }));
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return <Dashboard portfolio={portfolio} />;
-      case 'calculator':
-        return <CarbonCalculator />;
-      case 'marketplace':
-        return <Marketplace />;
-      case 'recommendations':
-        return <AIRecommendations />;
-      case 'ai-insights':
-        return <AIInsights />;
-      case 'ai-test':
-        return <AITestDashboard />;
-      case 'waste-tracker':
-        return <WasteDisposalTracker />;
-      case 'corporate':
-        return <CorporateCompliance />;
-      case 'verification':
-        return <VerificationDashboard />;
-      case 'blockchain':
-        return config.features.blockchainEnabled ? <BlockchainDashboard /> : <Dashboard portfolio={portfolio} />;
-      case 'blockchain-testnet':
-        return <BlockchainTestnetDashboard />;
-      case 'production-guide':
-        return <BlockchainProductionGuide />;
-      case 'analytics':
-        return <Analytics />;
-      case 'profile':
-        return <Profile />;
-      default:
-        return <Dashboard portfolio={portfolio} />;
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="text-center">
-          <LoadingSpinner size="lg" />
-          <p className="mt-4 text-gray-600">Loading CarbonAI...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <ErrorBoundary>
-      <div className="min-h-screen bg-gray-50">
-        <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-          {renderContent()}
-        </main>
-        <NotificationContainer />
-      </div>
-    </ErrorBoundary>
-  );
+interface NavigationProps {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
 }
 
-export default App;
+const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'calculator', label: 'Calculator', icon: Calculator },
+    { id: 'marketplace', label: 'Marketplace', icon: ShoppingCart },
+    { id: 'recommendations', label: 'AI Recommendations', icon: Brain },
+    { id: 'ai-insights', label: 'AI Insights', icon: Lightbulb },
+    { id: 'ai-test', label: 'AI Test', icon: TestTube },
+    { id: 'waste-tracker', label: 'Waste Tracker', icon: Trash2 },
+    { id: 'corporate', label: 'Corporate', icon: Building },
+    { id: 'verification', label: 'Verification', icon: Shield },
+    { id: 'blockchain', label: 'Blockchain', icon: Link },
+    { id: 'blockchain-testnet', label: 'Testnet', icon: Link },
+    { id: 'production-guide', label: 'Production Guide', icon: BookOpen },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'profile', label: 'Profile', icon: User },
+  ];
+
+  return (
+    <nav className="bg-white shadow-sm border-b border-gray-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          <div className="flex items-center">
+            <Leaf className="h-8 w-8 text-green-600" />
+            <span className="ml-2 text-xl font-bold text-gray-900">CarbonAI</span>
+          </div>
+          
+          <div className="hidden md:block">
+            <div className="ml-10 flex items-baseline space-x-4">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    className={`px-3 py-2 rounded-md text-sm font-medium flex items-center space-x-1 transition-colors ${
+                      activeTab === item.id
+                        ? 'bg-green-100 text-green-700'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Mobile menu button */}
+          <div className="md:hidden">
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+            >
+              {navItems.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+};
+
+export default Navigation;
