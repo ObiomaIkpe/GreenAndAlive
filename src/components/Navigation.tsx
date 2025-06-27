@@ -45,27 +45,27 @@ export default function Navigation({ activeTab, setActiveTab }: Props) {
           </div>
 
           {/* Desktop Navigation - Hidden on smaller screens */}
-          <div className="hidden xl:flex space-x-1 flex-1 justify-center max-w-5xl mx-8">
+          <div className="hidden xl:flex space-x-2 flex-1 justify-center max-w-6xl mx-8">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center space-x-1.5 px-2.5 py-2 rounded-lg font-medium text-xs transition-all duration-200 whitespace-nowrap ${
+                  className={`flex items-center space-x-2 px-3 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${
                     activeTab === item.id
-                      ? 'bg-emerald-100 text-emerald-700 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      ? 'bg-emerald-100 text-emerald-700 shadow-sm border border-emerald-200'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
                   }`}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span className="hidden 2xl:inline">{item.label}</span>
+                  <span>{item.label}</span>
                 </button>
               );
             })}
           </div>
 
-          {/* Tablet Navigation - Show fewer items */}
+          {/* Tablet Navigation - Show fewer items with tooltips */}
           <div className="hidden lg:flex xl:hidden space-x-1 flex-1 justify-center max-w-4xl mx-8">
             {navItems.slice(0, 8).map((item) => {
               const Icon = item.icon;
@@ -73,14 +73,18 @@ export default function Navigation({ activeTab, setActiveTab }: Props) {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center justify-center p-2.5 rounded-lg font-medium text-xs transition-all duration-200 ${
+                  className={`relative group flex items-center justify-center p-2.5 rounded-lg font-medium text-xs transition-all duration-200 ${
                     activeTab === item.id
                       ? 'bg-emerald-100 text-emerald-700 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
-                  title={item.label}
                 >
                   <Icon className="w-4 h-4" />
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                    {item.label}
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
                 </button>
               );
             })}
@@ -88,13 +92,17 @@ export default function Navigation({ activeTab, setActiveTab }: Props) {
             <div className="relative">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="flex items-center justify-center p-2.5 rounded-lg font-medium text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200"
-                title="More options"
+                className="relative group flex items-center justify-center p-2.5 rounded-lg font-medium text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200"
               >
                 <Menu className="w-4 h-4" />
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                  More Options
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                </div>
               </button>
               {mobileMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                   {navItems.slice(8).map((item) => {
                     const Icon = item.icon;
                     return (
@@ -104,14 +112,22 @@ export default function Navigation({ activeTab, setActiveTab }: Props) {
                           setActiveTab(item.id);
                           setMobileMenuOpen(false);
                         }}
-                        className={`flex items-center space-x-3 w-full px-4 py-2 text-sm transition-colors duration-200 ${
+                        className={`flex items-center space-x-3 w-full px-4 py-3 text-sm transition-colors duration-200 ${
                           activeTab === item.id
                             ? 'bg-emerald-50 text-emerald-700'
                             : 'text-gray-700 hover:bg-gray-50'
                         }`}
                       >
                         <Icon className="w-4 h-4" />
-                        <span>{item.label}</span>
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{item.label}</span>
+                          <span className="text-xs text-gray-500">
+                            {item.id === 'blockchain-testnet' ? 'Test smart contracts' :
+                             item.id === 'production-guide' ? 'Deploy to mainnet' :
+                             item.id === 'analytics' ? 'View carbon insights' :
+                             item.id === 'profile' ? 'Manage account' : 'Advanced features'}
+                          </span>
+                        </div>
                       </button>
                     );
                   })}
@@ -121,7 +137,7 @@ export default function Navigation({ activeTab, setActiveTab }: Props) {
           </div>
 
           {/* Desktop Settings */}
-          <div className="hidden lg:flex items-center space-x-2">
+          <div className="hidden lg:flex items-center space-x-3">
             <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200">
               <Settings className="w-5 h-5" />
             </button>
