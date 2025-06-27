@@ -1,205 +1,153 @@
-import React, { useState } from 'react';
-import { BarChart3, ShoppingCart, Calculator, Brain, Activity, User, Settings, Blocks, Lightbulb, TestTube, Recycle, Building2, Shield, Menu, X, Network, Rocket } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import ErrorBoundary from './components/ErrorBoundary';
+import Navigation from './components/Navigation';
+import Dashboard from './components/Dashboard';
+import CarbonCalculator from './components/CarbonCalculator';
+import Marketplace from './components/Marketplace';
+import AIRecommendations from './components/AIRecommendations';
+import AIInsights from './components/AIInsights';
+import AITestDashboard from './components/AITestDashboard';
+import WasteDisposalTracker from './components/WasteDisposalTracker';
+import CorporateCompliance from './components/CorporateCompliance';
+import VerificationDashboard from './components/VerificationDashboard';
+import Analytics from './components/Analytics';
+import Profile from './components/Profile';
+import BlockchainDashboard from './components/BlockchainDashboard';
+import BlockchainTestnetDashboard from './components/BlockchainTestnetDashboard';
+import BlockchainProductionGuide from './components/BlockchainProductionGuide';
+import LoadingSpinner from './components/LoadingSpinner';
+import NotificationContainer from './components/NotificationContainer';
+import { UserPortfolio } from './types';
+import { analyticsService } from './services/analytics';
+import { localStorageService } from './services/localStorage';
+import { config } from './config/environment';
 
-interface Props {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-}
+function App() {
+  const [activeTab, setActiveTab] = useState('production-guide');
+  const [blockchainReady, setBlockchainReady] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [portfolio, setPortfolio] = useState<UserPortfolio>({
+    totalCredits: 1247,
+    totalValue: 52850,
+    monthlyOffset: 18.5,
+    carbonFootprint: 32.4,
+    reductionGoal: 24.0,
+    achievements: [
+      'Carbon Neutral Champion - Achieved 3 consecutive months',
+      'Forest Protector - 100+ conservation credits purchased',
+      'Efficiency Expert - 30% emission reduction achieved'
+    ],
+    walletAddress: '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6',
+    tokenBalance: 1247,
+    stakingRewards: 156.5,
+    nftBadges: []
+  });
 
-const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-  { id: 'calculator', label: 'Calculator', icon: Calculator },
-  { id: 'marketplace', label: 'Marketplace', icon: ShoppingCart },
-  { id: 'recommendations', label: 'AI Recommendations', icon: Brain },
-  { id: 'ai-insights', label: 'AI Insights', icon: Lightbulb },
-  { id: 'ai-test', label: 'AI Test', icon: TestTube },
-  { id: 'waste-tracker', label: 'Waste Tracker', icon: Recycle },
-  { id: 'corporate', label: 'Corporate', icon: Building2 },
-  { id: 'verification', label: 'Verification', icon: Shield },
-  { id: 'blockchain', label: 'Blockchain', icon: Blocks },
-  { id: 'blockchain-testnet', label: 'Testnet', icon: Network },
-  { id: 'production-guide', label: 'Production Guide', icon: Rocket },
-  { id: 'analytics', label: 'Analytics', icon: Activity },
-  { id: 'profile', label: 'Profile', icon: User }
-];
+  useEffect(() => {
+    // Initialize analytics
+    analyticsService.initialize();
+    
+    // Load user data from localStorage
+    const userData = localStorageService.getUserData();
+    setPortfolio(prev => ({
+      ...prev,
+      totalCredits: userData.portfolio.totalCredits,
+      totalValue: userData.portfolio.totalValue,
+      monthlyOffset: userData.portfolio.monthlyOffset,
+      carbonFootprint: userData.carbonFootprint.totalEmissions || prev.carbonFootprint,
+      reductionGoal: userData.portfolio.reductionGoal,
+      achievements: userData.portfolio.achievements
+    }));
+    
+    // Simulate app initialization
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
 
-export default function Navigation({ activeTab, setActiveTab }: Props) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    // Track page views
+    analyticsService.trackPageView(activeTab);
+  }, [activeTab]);
+
+  // Update portfolio when localStorage changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const userData = localStorageService.getUserData();
+      setPortfolio(prev => ({
+        ...prev,
+        totalCredits: userData.portfolio.totalCredits,
+        totalValue: userData.portfolio.totalValue,
+        monthlyOffset: userData.portfolio.monthlyOffset,
+        carbonFootprint: userData.carbonFootprint.totalEmissions || prev.carbonFootprint,
+        reductionGoal: userData.portfolio.reductionGoal,
+        achievements: userData.portfolio.achievements
+      }));
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return <Dashboard portfolio={portfolio} />;
+      case 'calculator':
+        return <CarbonCalculator />;
+      case 'marketplace':
+        return <Marketplace />;
+      case 'recommendations':
+        return <AIRecommendations />;
+      case 'ai-insights':
+        return <AIInsights />;
+      case 'ai-test':
+        return <AITestDashboard />;
+      case 'waste-tracker':
+        return <WasteDisposalTracker />;
+      case 'corporate':
+        return <CorporateCompliance />;
+      case 'verification':
+        return <VerificationDashboard />;
+      case 'blockchain':
+        return config.features.blockchainEnabled ? <BlockchainDashboard /> : <Dashboard portfolio={portfolio} />;
+      case 'blockchain-testnet':
+        return <BlockchainTestnetDashboard />;
+      case 'production-guide':
+        return <BlockchainProductionGuide />;
+      case 'analytics':
+        return <Analytics />;
+      case 'profile':
+        return <Profile />;
+      default:
+        return <Dashboard portfolio={portfolio} />;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-gray-600">Loading CarbonAI...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <div className="flex items-center space-x-3 flex-shrink-0">
-            <div className="bg-emerald-600 p-2 rounded-lg">
-              <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900">CarbonAI</h1>
-              <p className="text-xs text-gray-500">Smart Carbon Management</p>
-            </div>
-            <div className="sm:hidden">
-              <h1 className="text-lg font-bold text-gray-900">CarbonAI</h1>
-            </div>
-          </div>
-
-          {/* Desktop Navigation - Full labels for XL screens */}
-          <div className="hidden xl:flex space-x-1 flex-1 justify-center max-w-6xl mx-8">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${
-                    activeTab === item.id
-                      ? 'bg-emerald-100 text-emerald-700 shadow-sm border border-emerald-200'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
-                  }`}
-                >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span className="text-xs">{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Tablet Navigation - Icons with tooltips for LG screens */}
-          <div className="hidden lg:flex xl:hidden space-x-1 flex-1 justify-center max-w-4xl mx-8">
-            {navItems.slice(0, 8).map((item) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.id} className="relative group">
-                  <button
-                    onClick={() => setActiveTab(item.id)}
-                    className={`flex items-center justify-center p-2.5 rounded-lg font-medium transition-all duration-200 ${
-                      activeTab === item.id
-                        ? 'bg-emerald-100 text-emerald-700 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                  </button>
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                    {item.label}
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                  </div>
-                </div>
-              );
-            })}
-            {/* More menu for remaining items */}
-            <div className="relative">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="relative group flex items-center justify-center p-2.5 rounded-lg font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200"
-              >
-                <Menu className="w-4 h-4" />
-                {/* Tooltip */}
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                  More Options
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                </div>
-              </button>
-              {mobileMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                  {navItems.slice(8).map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          setActiveTab(item.id);
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`flex items-center space-x-3 w-full px-4 py-3 text-sm transition-colors duration-200 ${
-                          activeTab === item.id
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : 'text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        <span>{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Desktop Settings */}
-          <div className="hidden lg:flex items-center space-x-3">
-            <div className="relative group">
-              <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200">
-                <Settings className="w-5 h-5" />
-              </button>
-              {/* Tooltip */}
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                Settings
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="lg:hidden">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200"
-            >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <Menu className="w-6 h-6" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Navigation Menu */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-200 bg-white">
-            <div className="px-2 pt-2 pb-3 space-y-1 max-h-96 overflow-y-auto">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveTab(item.id);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`flex items-center space-x-3 w-full px-3 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
-                      activeTab === item.id
-                        ? 'bg-emerald-100 text-emerald-700 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-              <div className="border-t border-gray-200 pt-2 mt-2">
-                <button className="flex items-center space-x-3 w-full px-3 py-3 rounded-lg font-medium text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors duration-200">
-                  <Settings className="w-5 h-5" />
-                  <span>Settings</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-50">
+        <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+          {renderContent()}
+        </main>
+        <NotificationContainer />
       </div>
-
-      {/* Click outside to close mobile menu */}
-      {mobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-25 z-40 lg:hidden"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
-    </nav>
+    </ErrorBoundary>
   );
 }
+
+export default App;
