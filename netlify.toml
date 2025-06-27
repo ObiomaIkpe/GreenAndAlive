@@ -1,6 +1,6 @@
 [build]
   publish = "dist"
-  command = "npm run build"
+  command = "CI= npm run build"
 
 [build.environment]
   NODE_VERSION = "18"
@@ -12,9 +12,11 @@
 
 [context.production.environment]
   VITE_SENTRY_ENV = "production"
+  VITE_API_BASE_URL = "https://carbonai-backend.onrender.com"
 
 [context.deploy-preview.environment]
   VITE_SENTRY_ENV = "staging"
+  VITE_API_BASE_URL = "https://carbonai-backend.onrender.com"
 
 [[headers]]
   for = "/assets/*"

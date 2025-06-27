@@ -5,7 +5,7 @@ const supabaseUrl = config.supabase?.url || '';
 const supabaseAnonKey = config.supabase?.anonKey || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Supabase URL or Anon Key is missing. Please check your environment variables.');
+  console.warn('Supabase URL or Anon Key is missing. Please check your environment variables.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
