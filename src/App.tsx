@@ -13,6 +13,7 @@ import VerificationDashboard from './components/VerificationDashboard';
 import Analytics from './components/Analytics';
 import Profile from './components/Profile';
 import BlockchainDashboard from './components/BlockchainDashboard';
+import BlockchainTestnetDashboard from './components/BlockchainTestnetDashboard';
 import LoadingSpinner from './components/LoadingSpinner';
 import NotificationContainer from './components/NotificationContainer';
 import { UserPortfolio } from './types';
@@ -110,6 +111,8 @@ function App() {
         return <VerificationDashboard />;
       case 'blockchain':
         return config.features.blockchainEnabled ? <BlockchainDashboard /> : <Dashboard portfolio={portfolio} />;
+      case 'blockchain-testnet':
+        return <BlockchainTestnetDashboard />;
       case 'analytics':
         return <Analytics />;
       case 'profile':
