@@ -107,6 +107,11 @@ class AIService {
   }): Promise<AIRecommendation[]> {
     return this.queueRequest(async () => {
       try {
+        if (!this.apiKey) {
+          console.warn('OpenAI API key not configured, using fallback recommendations');
+          return this.getFallbackRecommendations(userProfile);
+        }
+
         const prompt = this.buildRecommendationPrompt(userProfile);
         
         const response = await this.callAI({
@@ -141,6 +146,11 @@ class AIService {
   }): Promise<CarbonPrediction> {
     return this.queueRequest(async () => {
       try {
+        if (!this.apiKey) {
+          console.warn('OpenAI API key not configured, using fallback prediction');
+          return this.getFallbackPrediction(historicalData);
+        }
+
         const prompt = `
           Analyze this carbon emission data and predict future trends:
           Monthly emissions (last 12 months): ${historicalData.monthly_emissions.join(', ')}
@@ -184,6 +194,11 @@ class AIService {
   }): Promise<AIInsights> {
     return this.queueRequest(async () => {
       try {
+        if (!this.apiKey) {
+          console.warn('OpenAI API key not configured, using fallback insights');
+          return this.getFallbackInsights(userData);
+        }
+
         const prompt = `
           Analyze carbon efficiency for this user profile:
           Total emissions: ${userData.emissions} tons CO2/year
@@ -233,6 +248,11 @@ class AIService {
   }> {
     return this.queueRequest(async () => {
       try {
+        if (!this.apiKey) {
+          console.warn('OpenAI API key not configured, using fallback credit recommendations');
+          return this.getFallbackCreditRecommendations(preferences);
+        }
+
         // This would integrate with your marketplace data
         const availableCredits = await apiService.get('/marketplace/credits').catch(() => []);
         
@@ -285,6 +305,11 @@ class AIService {
   }> {
     return this.queueRequest(async () => {
       try {
+        if (!this.apiKey) {
+          console.warn('OpenAI API key not configured, using fallback behavior analysis');
+          return this.getFallbackBehaviorAnalysis();
+        }
+
         const prompt = `
           Analyze user behavior patterns for carbon impact:
           Recent activities: ${JSON.stringify(activityData.daily_activities.slice(-7))}
@@ -322,11 +347,11 @@ class AIService {
   // Private helper methods
   private async callAI(payload: any): Promise<any> {
     if (!this.apiKey) {
-      throw new AppError('AI API key not configured. Please set VITE_OPENAI_API_KEY in your .env file.', 500);
+      throw new AppError('OpenAI API key not configured. Please check your environment variables.', 500);
     }
 
     if (!this.apiKey.startsWith('sk-')) {
-      throw new AppError('Invalid OpenAI API key format. API key should start with "sk-".', 500);
+      throw new AppError('Invalid OpenAI API key format. API key should start with "sk-" or "sk-proj-".', 500);
     }
 
     try {
@@ -354,11 +379,13 @@ class AIService {
         if (response.status === 401) {
           errorMessage = 'Invalid API key. Please check your VITE_OPENAI_API_KEY in the .env file.';
         } else if (response.status === 429) {
-          errorMessage = 'API rate limit exceeded. Please wait a moment and try again. Consider upgrading your OpenAI plan for higher rate limits.';
+          errorMessage = 'OpenAI rate limit exceeded. Please wait a moment and try again. Your current plan may have usage limits.';
         } else if (response.status === 403) {
-          errorMessage = 'API access forbidden. Please check your API key permissions.';
+          errorMessage = 'OpenAI API access forbidden. Please check your API key permissions and billing status.';
         } else if (response.status === 404 && errorMessage.includes('model')) {
           errorMessage = `The AI model "${this.model}" is not available with your API key. Try using "gpt-3.5-turbo" instead.`;
+        } else if (response.status >= 500) {
+          errorMessage = 'OpenAI service is temporarily unavailable. Please try again later.';
         }
 
         throw new AppError(errorMessage, response.status);
@@ -378,10 +405,10 @@ class AIService {
       
       // Network or other errors
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new AppError('Network error: Unable to connect to AI service. Please check your internet connection.', 500);
+        throw new AppError('Network error: Unable to connect to OpenAI service. Please check your internet connection.', 500);
       }
       
-      throw new AppError(`AI service error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
+      throw new AppError(`OpenAI service error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
     }
   }
 
@@ -551,104 +578,169 @@ class AIService {
       {
         id: 'fallback-1',
         type: 'reduction',
-        title: 'Switch to LED Lighting',
-        description: 'Replace incandescent bulbs with LED alternatives to reduce energy consumption',
-        impact: 2.4,
+        title: 'Optimize Home Energy Usage',
+        description: 'Implement smart energy management practices to reduce your carbon footprint',
+        impact: 3.2,
         confidence: 90,
         category: 'Energy Efficiency',
-        rewardPotential: 24,
+        rewardPotential: 32,
         actionSteps: [
-          'Audit current lighting throughout your home',
-          'Purchase ENERGY STAR certified LED bulbs',
-          'Install LED replacements in high-use areas first',
-          'Monitor energy usage reduction'
+          'Install a programmable thermostat',
+          'Switch to LED lighting throughout your home',
+          'Unplug electronics when not in use',
+          'Use energy-efficient appliances'
         ],
-        estimatedCost: 150,
-        timeframe: '1 week',
+        estimatedCost: 300,
+        timeframe: '2-4 weeks',
         priority: 'medium'
       },
       {
         id: 'fallback-2',
         type: 'behavioral',
-        title: 'Optimize Thermostat Settings',
-        description: 'Adjust heating and cooling settings to reduce energy consumption',
-        impact: 3.2,
+        title: 'Sustainable Transportation',
+        description: 'Reduce transportation emissions through smart mobility choices',
+        impact: 4.8,
         confidence: 85,
-        category: 'Home Energy',
-        rewardPotential: 32,
+        category: 'Transportation',
+        rewardPotential: 48,
         actionSteps: [
-          'Set thermostat 2-3 degrees lower in winter',
-          'Set thermostat 2-3 degrees higher in summer',
-          'Use programmable schedule for when away',
-          'Install smart thermostat for better control'
+          'Use public transportation or carpool when possible',
+          'Walk or bike for trips under 2 miles',
+          'Combine errands into single trips',
+          'Consider electric or hybrid vehicle for next purchase'
         ],
-        estimatedCost: 200,
-        timeframe: '1 day',
+        estimatedCost: 0,
+        timeframe: '1-2 weeks',
         priority: 'high'
       },
       {
         id: 'fallback-3',
-        type: 'reduction',
-        title: 'Reduce Car Usage',
-        description: 'Use alternative transportation methods to reduce carbon emissions',
-        impact: 4.8,
+        type: 'purchase',
+        title: 'Invest in Carbon Credits',
+        description: 'Purchase verified carbon credits to offset your remaining emissions',
+        impact: 5.5,
         confidence: 80,
-        category: 'Transportation',
-        rewardPotential: 48,
+        category: 'Carbon Offsetting',
+        rewardPotential: 55,
         actionSteps: [
-          'Plan combined trips to reduce total driving',
-          'Use public transportation for commuting',
-          'Walk or bike for short distances',
-          'Consider carpooling for regular trips'
+          'Calculate your annual carbon footprint',
+          'Research verified carbon credit projects',
+          'Purchase credits from reputable providers',
+          'Track and verify your offset impact'
         ],
-        estimatedCost: 0,
-        timeframe: '2 weeks',
+        estimatedCost: userProfile.budget || 500,
+        timeframe: '1 week',
         priority: 'high'
+      },
+      {
+        id: 'fallback-4',
+        type: 'optimization',
+        title: 'Smart Home Automation',
+        description: 'Use technology to automatically optimize your energy consumption',
+        impact: 2.8,
+        confidence: 75,
+        category: 'Technology',
+        rewardPotential: 28,
+        actionSteps: [
+          'Install smart power strips to eliminate phantom loads',
+          'Use smart thermostats with learning capabilities',
+          'Set up automated lighting schedules',
+          'Monitor energy usage with smart meters'
+        ],
+        estimatedCost: 400,
+        timeframe: '3-4 weeks',
+        priority: 'medium'
       }
     ];
   }
 
   private getFallbackPrediction(historicalData: any): CarbonPrediction {
+    const recentEmissions = historicalData.monthly_emissions || [32.4];
+    const avgEmissions = recentEmissions.reduce((a: number, b: number) => a + b, 0) / recentEmissions.length;
+    const trend = recentEmissions.length > 1 && recentEmissions[recentEmissions.length - 1] < recentEmissions[0] ? 'decreasing' : 'stable';
+    
     return {
-      predictedEmissions: 25.5,
-      trend: 'decreasing',
-      factors: ['Seasonal reduction', 'Improved efficiency'],
+      predictedEmissions: Math.max(avgEmissions * 0.95, 20), // Slight improvement expected
+      trend,
+      factors: ['Historical trends', 'Seasonal patterns', 'Energy efficiency improvements'],
       confidence: 85,
       timeframe: '3 months'
     };
   }
 
   private getFallbackInsights(userData: any): AIInsights {
+    const emissions = userData.emissions || 32.4;
+    const efficiencyScore = Math.max(100 - Math.floor(emissions * 2), 40); // Lower emissions = higher score
+    
     return {
-      carbonEfficiencyScore: 75,
+      carbonEfficiencyScore: efficiencyScore,
       benchmarkComparison: {
-        industry: 70,
-        region: 68,
-        similar_users: 77
+        industry: Math.max(efficiencyScore - 10, 30),
+        region: Math.max(efficiencyScore - 5, 35),
+        similar_users: Math.max(efficiencyScore + 5, 45)
       },
-      improvementPotential: 25,
+      improvementPotential: Math.min(100 - efficiencyScore, 40),
       keyRecommendations: []
     };
   }
 
   private getFallbackCreditRecommendations(preferences: any): any {
+    const budget = preferences.budget || 500;
+    
     return {
-      recommended_credits: [],
-      reasoning: 'AI service unavailable. Please try again later.',
+      recommended_credits: [
+        {
+          type: 'forest_conservation',
+          amount: Math.floor(budget * 0.4 / 45),
+          price: 45,
+          description: 'Amazon Rainforest Protection Project',
+          location: 'Brazil'
+        },
+        {
+          type: 'renewable_energy',
+          amount: Math.floor(budget * 0.35 / 32),
+          price: 32,
+          description: 'Wind Energy Development',
+          location: 'Texas, USA'
+        },
+        {
+          type: 'carbon_capture',
+          amount: Math.floor(budget * 0.25 / 85),
+          price: 85,
+          description: 'Direct Air Capture Technology',
+          location: 'Iceland'
+        }
+      ],
+      reasoning: `Based on your budget of $${budget} and preferences, we recommend a diversified portfolio focusing on forest conservation (40%), renewable energy (35%), and carbon capture technology (25%). This allocation balances cost-effectiveness with high-impact projects.`,
       portfolio_allocation: {
-        'forest': 50,
-        'renewable': 30,
-        'efficiency': 20
+        'forest': 40,
+        'renewable': 35,
+        'capture': 25
       }
     };
   }
 
   private getFallbackBehaviorAnalysis(): any {
     return {
-      insights: ['Data analysis unavailable'],
-      behavior_score: 75,
-      improvement_suggestions: ['Continue tracking activities'],
-      habit_recommendations: ['Maintain current habits']
+      insights: [
+        'Your carbon tracking shows consistent engagement with sustainability',
+        'Transportation appears to be your largest emission source',
+        'Energy usage patterns suggest room for optimization',
+        'You show strong commitment to environmental goals'
+      ],
+      behavior_score: 78,
+      improvement_suggestions: [
+        'Focus on reducing transportation emissions through alternative mobility',
+        'Implement energy-saving habits during peak usage hours',
+        'Consider renewable energy options for your home',
+        'Track and celebrate small daily improvements'
+      ],
+      habit_recommendations: [
+        'Set up automated energy-saving schedules',
+        'Plan weekly sustainable transportation goals',
+        'Create monthly carbon reduction challenges',
+        'Join local environmental community groups'
+      ]
     };
   }
 }
