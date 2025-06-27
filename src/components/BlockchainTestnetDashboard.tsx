@@ -58,6 +58,24 @@ export default function BlockchainTestnetDashboard() {
 
   const handleConnectWallet = async () => {
     setLoading(true);
+    try {
+      const address = await blockchainTestnetService.connectWallet();
+      if (address) {
+        setUserAddress(address);
+        setIsConnected(true);
+        
+        // Load any existing deployment
+        loadStoredDeployment();
+        await loadNetworkInfo();
+      }
+    } catch (error) {
+      console.error('Wallet connection failed:', error);
+    }
+    setLoading(false);
+  };
+
+  const handleConnectWalletOld = async () => {
+    setLoading(true);
     const address = await blockchainTestnetService.connectWallet();
     if (address) {
       setUserAddress(address);

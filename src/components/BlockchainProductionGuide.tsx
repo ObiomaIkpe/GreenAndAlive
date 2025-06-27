@@ -66,6 +66,24 @@ export default function BlockchainProductionGuide() {
   };
 
   const handleConnectWallet = async () => {
+    try {
+      const address = await blockchainTestnetService.connectWallet();
+      if (address) {
+        setWalletConnected(true);
+        setCompletedSteps(prev => [...prev, 1]);
+        setCurrentStep(2);
+        notificationService.success('Wallet Connected', 'Ready for smart contract deployment');
+      }
+    } catch (error) {
+      console.error('Wallet connection failed:', error);
+      notificationService.error(
+        'Connection Failed',
+        'Please install MetaMask and get Sepolia testnet ETH from a faucet.'
+      );
+    }
+  };
+
+  const handleConnectWalletOld = async () => {
     const address = await blockchainTestnetService.connectWallet();
     if (address) {
       setWalletConnected(true);
@@ -76,6 +94,24 @@ export default function BlockchainProductionGuide() {
   };
 
   const handleDeployContract = async () => {
+    try {
+      const deployment = await blockchainTestnetService.deployContract();
+      if (deployment) {
+        setContractDeployed(true);
+        setCompletedSteps(prev => [...prev, 2]);
+        setCurrentStep(3);
+        notificationService.success('Contract Deployed', 'Smart contract is live on Sepolia testnet');
+      }
+    } catch (error) {
+      console.error('Contract deployment failed:', error);
+      notificationService.error(
+        'Deployment Failed',
+        'Failed to deploy contract. Please ensure you have sufficient Sepolia ETH.'
+      );
+    }
+  };
+
+  const handleDeployContractOld = async () => {
     const deployment = await blockchainTestnetService.deployContract();
     if (deployment) {
       setContractDeployed(true);

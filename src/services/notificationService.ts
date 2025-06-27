@@ -48,7 +48,7 @@ class NotificationService {
   }
 
   public error(title: string, message: string, action?: Notification['action']): string {
-    return this.show({ type: 'error', title, message, duration: 0, action });
+    return this.show({ type: 'error', title, message, duration: 8000, action });
   }
 
   public warning(title: string, message: string, action?: Notification['action']): string {

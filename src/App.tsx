@@ -24,6 +24,7 @@ import { config } from './config/environment';
 
 function App() {
   const [activeTab, setActiveTab] = useState('production-guide');
+  const [blockchainReady, setBlockchainReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [portfolio, setPortfolio] = useState<UserPortfolio>({
     totalCredits: 1247,

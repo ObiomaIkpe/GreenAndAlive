@@ -100,13 +100,28 @@ export default function BlockchainDashboard() {
   const connectWallet = async () => {
     setLoading(true);
     try {
+      // Use the testnet service for better functionality
       const address = await blockchainService.connectWallet();
       if (address) {
         setWalletAddress(address);
         setWalletConnected(true);
+        
+        // Show helpful message about testnet
+        notificationService.info(
+          'Testnet Connected',
+          'Connected to Sepolia testnet. Use test ETH for transactions.',
+          {
+            label: 'Get Test ETH',
+            onClick: () => window.open('https://sepoliafaucet.com', '_blank')
+          }
+        );
       }
     } catch (error) {
       console.error('Wallet connection failed:', error);
+      notificationService.error(
+        'Connection Failed',
+        'Please install MetaMask and ensure you have Sepolia testnet configured.'
+      );
     }
     setLoading(false);
   };
