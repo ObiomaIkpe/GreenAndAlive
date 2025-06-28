@@ -39,7 +39,6 @@ export const supabase = (() => {
           }),
           order: () => ({
             limit: () => Promise.resolve({ data: [], error: null })
-          }),
           limit: () => Promise.resolve({ data: [], error: null }),
           ilike: () => ({
             eq: () => Promise.resolve({ data: [], error: null })
