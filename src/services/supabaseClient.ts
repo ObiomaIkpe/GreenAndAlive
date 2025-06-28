@@ -35,7 +35,6 @@ export const supabase = (() => {
             order: () => ({
               limit: () => Promise.resolve({ data: [], error: null })
             }),
-            order: () => Promise.resolve({ data: [], error: null }),
             range: () => Promise.resolve({ data: [], error: null })
           }),
           order: () => ({
