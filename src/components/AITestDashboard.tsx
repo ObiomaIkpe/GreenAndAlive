@@ -440,11 +440,9 @@ export default function AITestDashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     {getStatusIcon(test.status)}
-                    (config.ai.apiKey.startsWith('sk-') || config.ai.apiKey.startsWith('sk-proj-')) ? (
                       <h4 className="font-medium text-gray-900">{test.name}</h4>
                       <p className="text-sm text-gray-600">{test.message}</p>
                     </div>
-                  </div>
                   {test.duration && (
                     <span className="text-xs text-gray-500">{test.duration}ms</span>
                   )}
