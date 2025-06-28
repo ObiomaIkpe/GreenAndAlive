@@ -12,11 +12,11 @@
 
 [context.production.environment]
   VITE_SENTRY_ENV = "production"
-  VITE_API_BASE_URL = "https://carbonai-backend.onrender.com"
+  VITE_API_BASE_URL = "https://carbonledgerai-backend.onrender.com"
 
 [context.deploy-preview.environment]
   VITE_SENTRY_ENV = "staging"
-  VITE_API_BASE_URL = "https://carbonai-backend.onrender.com"
+  VITE_API_BASE_URL = "https://carbonledgerai-backend.onrender.com"
 
 [[headers]]
   for = "/assets/*"
