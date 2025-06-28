@@ -4,16 +4,16 @@
 
 @keyframes pulse-glow {
   0% {
-    box-shadow: 0 0 5px 0 rgba(16, 185, 129, 0.7);
+    box-shadow: 0 0 8px 0 rgba(16, 185, 129, 0.7);
   }
   70% {
-    box-shadow: 0 0 15px 5px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 0 20px 8px rgba(16, 185, 129, 0.5);
   }
   100% {
-    box-shadow: 0 0 5px 0 rgba(16, 185, 129, 0.7);
+    box-shadow: 0 0 8px 0 rgba(16, 185, 129, 0.7);
   }
 }
 
 .bolt-badge-animate {
-  animation: pulse-glow 3s infinite;
+  animation: pulse-glow 2.5s infinite;
 }
