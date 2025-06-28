@@ -2,12 +2,13 @@
   "name": "carbonledgerai-backend",
   "version": "1.0.0",
   "description": "Backend API for CarbonledgerAI platform",
-  "main": "src/main.js",
+  "main": "dist/main.js",
   "scripts": {
-    "start": "node src/main.js",
+    "start": "node dist/main.js",
     "dev": "nodemon src/index.js",
-    "build": "nest build",
-    "start:prod": "node dist/main.js",
+    "build": "tsc",
+    "start:prod": "npm run build && node dist/main.js",
+    "postinstall": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {

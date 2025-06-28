@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -32,6 +33,15 @@ try {
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', environment: process.env.NODE_ENV });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({ 
+    message: 'CarbonledgerAI Backend API', 
+    version: '1.0.0',
+    status: 'running' 
+  });
 });
 
 // Authentication middleware
