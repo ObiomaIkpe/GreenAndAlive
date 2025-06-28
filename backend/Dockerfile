@@ -9,7 +9,7 @@ RUN apk add --no-cache python3 make g++ build-base
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm install
 
 # Rebuild bcrypt specifically to ensure it works in Alpine
 RUN npm rebuild bcrypt --build-from-source
