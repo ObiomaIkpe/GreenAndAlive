@@ -16,6 +16,7 @@ import Profile from './components/Profile';
 import BlockchainDashboard from './components/BlockchainDashboard';
 import BlockchainTestnetDashboard from './components/BlockchainTestnetDashboard';
 import BlockchainProductionGuide from './components/BlockchainProductionGuide';
+import BoltBlockchainDashboard from './components/BoltBlockchainDashboard';
 import LoadingSpinner from './components/LoadingSpinner';
 import NotificationContainer from './components/NotificationContainer';
 import { UserPortfolio } from './types';
@@ -120,6 +121,8 @@ function App() {
         return <BlockchainTestnetDashboard />;
       case 'production-guide':
         return <BlockchainProductionGuide />;
+      case 'bolt-blockchain':
+        return <BoltBlockchainDashboard />;
       case 'analytics':
         return <Analytics />;
       case 'profile':

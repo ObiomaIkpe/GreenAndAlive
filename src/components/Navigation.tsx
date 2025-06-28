@@ -41,6 +41,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
     { id: 'blockchain', label: 'Blockchain', description: 'Token management', icon: Link, group: 'blockchain' },
     { id: 'blockchain-testnet', label: 'Testnet', description: 'Test environment', icon: Link, group: 'blockchain' },
     { id: 'production-guide', label: 'Production Guide', description: 'Deployment steps', icon: BookOpen, group: 'blockchain' },
+    { id: 'bolt-blockchain', label: 'Bolt Blockchain', description: 'Bolt.new integration', icon: () => <img src="/bolt-icon.svg" alt="Bolt" className="w-4 h-4" />, group: 'blockchain' },
     { id: 'ai-test', label: 'AI Test', description: 'Test AI features', icon: TestTube, group: 'ai' }
   ];
 
