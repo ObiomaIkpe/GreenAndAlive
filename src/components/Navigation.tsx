@@ -29,6 +29,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
     { id: 'marketplace', label: 'Marketplace', description: 'Buy carbon credits', icon: ShoppingCart },
     { id: 'recommendations', label: 'AI Recommendations', description: 'Smart suggestions', icon: Brain },
     { id: 'ai-insights', label: 'AI Insights', description: 'Advanced analytics', icon: Lightbulb },
+    { id: 'ai-metrics', label: 'AI Metrics', description: 'Usage statistics', icon: BarChart3 },
     { id: 'analytics', label: 'Analytics', description: 'Performance data', icon: BarChart3 },
     { id: 'profile', label: 'Profile', description: 'Account settings', icon: User },
   ];
@@ -40,7 +41,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
     { id: 'blockchain', label: 'Blockchain', description: 'Token management', icon: Link },
     { id: 'blockchain-testnet', label: 'Testnet', description: 'Test environment', icon: Link },
     { id: 'production-guide', label: 'Production Guide', description: 'Deployment steps', icon: BookOpen },
-    { id: 'ai-test', label: 'AI Test', description: 'Test AI features', icon: TestTube },
+    { id: 'ai-test', label: 'AI Test', description: 'Test AI features', icon: TestTube }
   ];
 
   return (

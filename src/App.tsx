@@ -7,6 +7,7 @@ import Marketplace from './components/Marketplace';
 import AIRecommendations from './components/AIRecommendations';
 import AIInsights from './components/AIInsights';
 import AITestDashboard from './components/AITestDashboard';
+import AIMetricsView from './components/AIMetricsView';
 import WasteDisposalTracker from './components/WasteDisposalTracker';
 import CorporateCompliance from './components/CorporateCompliance';
 import VerificationDashboard from './components/VerificationDashboard';
@@ -102,9 +103,11 @@ function App() {
       case 'recommendations':
         return <AIRecommendations />;
       case 'ai-insights':
-        return <AIInsights />;
+        return <AIInsights />;  
       case 'ai-test':
         return <AITestDashboard />;
+      case 'ai-metrics':
+        return <AIMetricsView />;
       case 'waste-tracker':
         return <WasteDisposalTracker />;
       case 'corporate':
