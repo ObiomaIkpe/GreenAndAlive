@@ -19,11 +19,11 @@ export const supabase = (() => {
   if (isValidUrl && isValidKey) {
     try {
       return createClient(supabaseUrl!, supabaseAnonKey!, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      }
-    });
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+        }
+      });
     } catch (error) {
       console.error('Failed to initialize Supabase client:', error);
       // Fall through to mock client
@@ -92,64 +92,6 @@ function createMockSupabaseClient() {
     })
   };
 }
-
-    // Return a mock client that won't throw errors
-    return {
-      auth: {
-        getUser: () => Promise.resolve({ data: { user: null }, error: null }),
-        signInWithPassword: () => Promise.resolve({ data: null, error: new Error('Mock Supabase client') }),
-        signUp: () => Promise.resolve({ data: null, error: new Error('Mock Supabase client') }),
-        signOut: () => Promise.resolve({ error: null })
-      },
-      from: () => ({
-        select: () => ({
-          eq: () => ({
-            single: () => Promise.resolve({ data: null, error: new Error('Mock Supabase client') }),
-            order: () => ({
-              limit: () => Promise.resolve({ data: [], error: null })
-            }),
-            range: () => Promise.resolve({ data: [], error: null })
-          }),
-          order: () => ({
-            limit: () => Promise.resolve({ data: [], error: null })
-          }
-          ),
-          limit: () => Promise.resolve({ data: [], error: null }),
-          ilike: () => ({
-            eq: () => Promise.resolve({ data: [], error: null })
-          }),
-          gt: () => ({
-            eq: () => Promise.resolve({ data: [], error: null })
-          }),
-          gte: () => ({
-            andWhere: () => ({
-              order: () => Promise.resolve({ data: [], error: null })
-            }),
-            order: () => Promise.resolve({ data: [], error: null })
-          })
-        }),
-        insert: () => ({
-          select: () => ({
-            single: () => Promise.resolve({ data: null, error: new Error('Mock Supabase client') })
-          })
-        }),
-        update: () => ({
-          eq: () => ({
-            select: () => ({
-              single: () => Promise.resolve({ data: null, error: new Error('Mock Supabase client') })
-            })
-          })
-        }),
-        delete: () => ({
-          eq: () => Promise.resolve({ error: null })
-        }),
-        count: () => ({
-          eq: () => Promise.resolve({ count: 0, error: null })
-        })
-      })
-    };
-  }
-})();
 
 export type Database = {
   public: {
