@@ -1,25 +1,98 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from '../config/environment';
 
-// Fallback values for development/testing
-const supabaseUrl = config.supabase?.url || 'https://supabase.example.com';
-const supabaseAnonKey = config.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YW1wbGUiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTYxNjQyMjY4Niwic3ViIjoiYW5vbiJ9.example';
+// Check if Supabase credentials are properly configured
+const supabaseUrl = config.supabase?.url;
+const supabaseAnonKey = config.supabase?.anonKey;
 
-if (!supabaseUrl || !supabaseAnonKey) {
+// Validate that we have real Supabase credentials, not placeholders
+const isValidUrl = supabaseUrl && supabaseUrl !== 'your-supabase-url' && supabaseUrl.startsWith('https://');
+const isValidKey = supabaseAnonKey && supabaseAnonKey !== 'your-supabase-anon-key' && supabaseAnonKey.length > 50;
+
+if (!isValidUrl || !isValidKey) {
   console.warn('Supabase URL or Anon Key is missing. Please check your environment variables.');
 }
 
 // Create client with fallback handling and error catching
 export const supabase = (() => {
-  try {
-    return createClient(supabaseUrl, supabaseAnonKey, {
+  // Only attempt to create real client if we have valid credentials
+  if (isValidUrl && isValidKey) {
+    try {
+      return createClient(supabaseUrl!, supabaseAnonKey!, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
       }
     });
-  } catch (error) {
-    console.error('Failed to initialize Supabase client:', error);
+    } catch (error) {
+      console.error('Failed to initialize Supabase client:', error);
+      // Fall through to mock client
+    }
+  }
+  
+  // Return mock client for development when Supabase is not configured
+  console.info('Using mock Supabase client - configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY for real functionality');
+  return createMockSupabaseClient();
+})();
+
+// Mock Supabase client for development
+function createMockSupabaseClient() {
+  return {
+    auth: {
+      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+      signInWithPassword: () => Promise.resolve({ data: null, error: new Error('Mock Supabase client - please configure real credentials') }),
+      signUp: () => Promise.resolve({ data: null, error: new Error('Mock Supabase client - please configure real credentials') }),
+      signOut: () => Promise.resolve({ error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } })
+    },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: null, error: new Error('Mock Supabase client - please configure real credentials') }),
+          order: () => ({
+            limit: () => Promise.resolve({ data: [], error: null })
+          }),
+          range: () => Promise.resolve({ data: [], error: null })
+        }),
+        order: () => ({
+          limit: () => Promise.resolve({ data: [], error: null })
+        }),
+        limit: () => Promise.resolve({ data: [], error: null }),
+        ilike: () => ({
+          eq: () => Promise.resolve({ data: [], error: null })
+        }),
+        gt: () => ({
+          eq: () => Promise.resolve({ data: [], error: null })
+        }),
+        gte: () => ({
+          andWhere: () => ({
+            order: () => Promise.resolve({ data: [], error: null })
+          }),
+          order: () => Promise.resolve({ data: [], error: null })
+        })
+      }),
+      insert: () => ({
+        select: () => ({
+          single: () => Promise.resolve({ data: null, error: new Error('Mock Supabase client - please configure real credentials') })
+        })
+      }),
+      update: () => ({
+        eq: () => ({
+          select: () => ({
+            single: () => Promise.resolve({ data: null, error: new Error('Mock Supabase client - please configure real credentials') })
+          })
+        })
+      }),
+      delete: () => ({
+        eq: () => Promise.resolve({ error: null })
+      }),
+      count: () => ({
+        eq: () => Promise.resolve({ count: 0, error: null })
+      })
+    })
+  };
+}
+
     // Return a mock client that won't throw errors
     return {
       auth: {
