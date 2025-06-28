@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { Brain, CheckCircle, XCircle, AlertTriangle, Loader, Clock } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { openaiService } from '../services/openaiService';
+import { aiServiceAPI } from '../services/aiServiceAPI';
 import { config } from '../config/environment';
+import { notificationService } from '../services/notificationService';
 
 interface TestResult {
   name: string;
@@ -15,6 +17,21 @@ export default function AITestDashboard() {
   const [tests, setTests] = useState<TestResult[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [fallbackMode, setFallbackMode] = useState(aiService.isInFallbackMode());
+  const [apiKeyMasked, setApiKeyMasked] = useState<string>('');
+
+  useEffect(() => {
+    // Mask the API key for display
+    if (config.ai.apiKey) {
+      const key = config.ai.apiKey;
+      if (key.startsWith('sk-')) {
+        setApiKeyMasked(`sk-...${key.slice(-4)}`);
+      } else {
+        setApiKeyMasked('Invalid format');
+      }
+    } else {
+      setApiKeyMasked('Not configured');
+    }
+  }, []);
 
   const updateTest = (name: string, status: 'pending' | 'success' | 'error', message: string, duration?: number) => {
     setTests(prev => {
@@ -38,12 +55,16 @@ export default function AITestDashboard() {
     updateTest('Configuration', 'pending', 'Checking AI configuration...');
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    if (!config.ai.apiKey) {
+    const apiKey = config.ai.apiKey;
+    
+    if (!apiKey) {
       updateTest('Configuration', 'error', 'OpenAI API key not found in environment variables');
-    } else if (config.ai.apiKey.startsWith('sk-') && config.ai.apiKey.length > 20) {
-      updateTest('Configuration', 'success', 'API key format appears valid');
+      setFallbackMode(true);
+    } else if (apiKey.startsWith('sk-') && apiKey.length > 20) {
+      updateTest('Configuration', 'success', `API key format appears valid (${apiKeyMasked})`);
     } else {
-      updateTest('Configuration', 'error', 'API key format appears invalid');
+      updateTest('Configuration', 'error', `API key format appears invalid (${apiKey.substring(0, 5)}...)`);
+      setFallbackMode(true);
     }
 
     // Add delay between tests to respect rate limits
@@ -79,9 +100,10 @@ export default function AITestDashboard() {
     // Test 3: AI Recommendations
     updateTest('AI Recommendations', 'pending', 'Testing recommendation generation...');
     const startTime = Date.now();
-    
+
     try {
-      const recommendations = await aiService.generateRecommendations({
+      // Use the API service that's used in the actual application
+      const recommendations = await aiServiceAPI.generateRecommendations({
         carbonFootprint: 25.5,
         location: 'San Francisco, CA',
         lifestyle: ['urban', 'tech_worker'],
@@ -91,7 +113,7 @@ export default function AITestDashboard() {
       
       const duration = Date.now() - startTime;
       
-      if (recommendations && recommendations.length > 0) {
+      if (recommendations?.length > 0) {
         updateTest('AI Recommendations', 'success', 
           `Generated ${recommendations.length} recommendations successfully${aiService.isInFallbackMode() ? ' (using fallback)' : ''}`, duration);
         setFallbackMode(aiService.isInFallbackMode());
@@ -120,11 +142,11 @@ export default function AITestDashboard() {
     // Test 4: Carbon Predictions (only if previous test succeeded)
     const recommendationTest = tests.find(t => t.name === 'AI Recommendations');
     if (recommendationTest?.status === 'success') {
-      updateTest('Carbon Predictions', 'pending', 'Testing emission predictions...');
+      updateTest('Carbon Predictions', 'pending', 'Testing carbon emission predictions...');
       const predictionStartTime = Date.now();
       
       try {
-        const prediction = await aiService.predictCarbonEmissions({
+        const prediction = await aiServiceAPI.predictEmissions({
           monthly_emissions: [45, 42, 48, 41, 39, 37],
           activities: ['electricity', 'transportation'],
           seasonal_factors: true
@@ -163,15 +185,19 @@ export default function AITestDashboard() {
     // Quick configuration test only
     updateTest('Quick Configuration Test', 'pending', 'Checking basic setup...');
     await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Reset fallback mode to give the API another chance
-    aiService.resetFallbackMode();
-    setFallbackMode(false);
     
-    if (!config.ai.apiKey) {
+    const apiKey = config.ai.apiKey;
+    
+    // Reset fallback mode to give the API another chance
+    if (apiKey && apiKey.startsWith('sk-')) {
+      aiService.resetFallbackMode();
+      setFallbackMode(false);
+    }
+    
+    if (!apiKey) {
       updateTest('Quick Configuration Test', 'error', 'OpenAI API key not found');
       setFallbackMode(true);
-    } else if (!config.ai.apiKey.startsWith('sk-')) {
+    } else if (!apiKey.startsWith('sk-')) {
       updateTest('Quick Configuration Test', 'error', 'Invalid API key format');
       setFallbackMode(true);
     } else {
@@ -191,6 +217,13 @@ export default function AITestDashboard() {
     }
 
     setIsRunning(false);
+  };
+
+  const fixApiKey = () => {
+    notificationService.info(
+      'API Key Configuration',
+      'To fix the API key, add your OpenAI API key to the .env file as VITE_OPENAI_API_KEY=sk-your-key-here'
+    );
   };
 
   const getStatusIcon = (status: 'pending' | 'success' | 'error') => {
@@ -227,16 +260,16 @@ export default function AITestDashboard() {
           <div className="flex items-center space-x-3 relative">
             <div className="bg-purple-100 p-2 rounded-lg">
               <Brain className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
+            </div> 
+            <div className="flex-1">
               <h2 className="text-xl font-semibold text-gray-900">AI Integration Test Dashboard</h2>
               <p className="text-sm text-gray-600">Verify AI services are working correctly</p>
-              {fallbackMode && (
-                <span className="absolute top-0 right-0 -mt-2 px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
-                  Fallback Mode Active
-                </span>
-              )}
             </div>
+            {fallbackMode && (
+              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
+                Fallback Mode Active
+              </span>
+            )}
           </div>
           
           <div className="flex space-x-3">
@@ -320,16 +353,30 @@ export default function AITestDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="p-4 border border-gray-200 rounded-lg">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">API Key</span>
+              <span className="text-sm font-medium text-gray-700">OpenAI API Key</span>
               {config.ai.apiKey ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
+                config.ai.apiKey.startsWith('sk-') ? (
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-red-600" />
+                )
               ) : (
                 <XCircle className="w-5 h-5 text-red-600" />
               )}
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {config.ai.apiKey ? 'Configured' : 'Missing'}
-            </p>
+            <div className="flex justify-between items-center mt-1">
+              <p className="text-xs text-gray-500">
+                {config.ai.apiKey ? apiKeyMasked : 'Missing'}
+              </p>
+              {(!config.ai.apiKey || !config.ai.apiKey.startsWith('sk-')) && (
+                <button 
+                  onClick={fixApiKey}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  Fix
+                </button>
+              )}
+            </div>
           </div>
           
           <div className="p-4 border border-gray-200 rounded-lg">
@@ -353,14 +400,21 @@ export default function AITestDashboard() {
           <div className="p-4 border border-gray-200 rounded-lg">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700">Features</span>
-              {config.features.aiRecommendations ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              ) : (
-                <XCircle className="w-5 h-5 text-red-600" />
-              )}
+              <div className="flex items-center space-x-1">
+                {config.features.aiRecommendations ? (
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-red-600" />
+                )}
+                {fallbackMode && (
+                  <span className="text-xs text-yellow-600">(Fallback)</span>
+                )}
+              </div>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {config.features.aiRecommendations ? 'Enabled' : 'Disabled'}
+              {config.features.aiRecommendations 
+                ? fallbackMode ? 'Enabled (Fallback Mode)' : 'Enabled' 
+                : 'Disabled'}
             </p>
           </div>
         </div>
@@ -429,7 +483,7 @@ export default function AITestDashboard() {
                 <span className="font-medium text-yellow-900">
                   {fallbackMode ? 'AI Service in Fallback Mode' : 'Some tests failed'}
                 </span>
-              </div>
+              </div> 
               <p className="text-sm text-yellow-800 mt-2">
                 {fallbackMode 
                   ? 'The application is using pre-generated responses instead of live AI. To fix this:' 
@@ -442,7 +496,7 @@ export default function AITestDashboard() {
                 <li>• If rate limited, wait 2-3 minutes before trying again</li>
                 <li>• Consider using a different model (e.g., gpt-3.5-turbo instead of gpt-4)</li>
               </ul>
-              <div className="mt-3">
+              <div className="mt-4">
                 <button
                   onClick={runQuickTest}
                   className="text-sm font-medium text-indigo-600 hover:text-indigo-800"

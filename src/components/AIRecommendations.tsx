@@ -5,6 +5,7 @@ import { aiServiceAPI, AIRecommendationAPI } from '../services/aiServiceAPI';
 import { useAsync } from '../hooks/useAsync';
 import { localStorageService } from '../services/localStorage';
 import { notificationService } from '../services/notificationService';
+import { config } from '../config/environment';
 import LoadingSpinner from './LoadingSpinner';
 
 export default function AIRecommendations() {
@@ -19,7 +20,8 @@ export default function AIRecommendations() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [recommendations, setRecommendations] = useState<AIRecommendationAPI[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); 
+  const [retryCount, setRetryCount] = useState(0);
 
   // Check if AI service is in fallback mode
   const [isFallbackMode, setIsFallbackMode] = useState(aiService.isInFallbackMode());
@@ -27,20 +29,33 @@ export default function AIRecommendations() {
   const loadRecommendations = async () => {
     setLoading(true);
     setError(null);
+    
     try {
       const data = await aiServiceAPI.getRecommendations({ dismissed: false });
       setRecommendations(data);
       setIsFallbackMode(aiService.isInFallbackMode());
+      
+      if (data.length === 0 && retryCount < 2) {
+        // If no recommendations and we haven't tried generating yet, try to generate some
+        setRetryCount(prev => prev + 1);
+        await generateNewRecommendations();
+        return;
+      }
     } catch (err) {
-      setError('Failed to load recommendations');
+      setError('Failed to load recommendations. Please check your API configuration.');
       console.error('Error loading recommendations:', err);
+      setIsFallbackMode(true);
     } finally {
       setLoading(false);
     }
   };
 
+  const loadInitialData = async () => {
+    await loadRecommendations();
+  };
+
   useEffect(() => {
-    loadRecommendations();
+    loadInitialData();
   }, [refreshTrigger]);
 
   const { data: prediction } = useAsync(
@@ -66,14 +81,24 @@ export default function AIRecommendations() {
 
   const handleRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
+    setRetryCount(0);
   };
 
   const generateNewRecommendations = async () => {
     setLoading(true);
     try {
-      // Reset fallback mode to try using the API again
-      aiService.resetFallbackMode();
-      setIsFallbackMode(false);
+      if (!config.ai.apiKey) {
+        notificationService.warning(
+          'API Key Missing',
+          'Please add your OpenAI API key to the .env file (VITE_OPENAI_API_KEY)'
+        );
+        setIsFallbackMode(true);
+        setError('OpenAI API key is missing. Using fallback recommendations.');
+      } else {
+        // Reset fallback mode to try using the API again
+        aiService.resetFallbackMode();
+        setIsFallbackMode(false);
+      }
       
       await aiServiceAPI.generateRecommendations(userProfile);
       await loadRecommendations();
@@ -81,7 +106,8 @@ export default function AIRecommendations() {
       // Check if we fell back to mock data
       setIsFallbackMode(aiService.isInFallbackMode());
     } catch (err) {
-      setError('Failed to generate recommendations');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to generate recommendations: ${errorMessage}`);
       console.error('Error generating recommendations:', err);
       setIsFallbackMode(true);
     } finally {
@@ -146,7 +172,7 @@ export default function AIRecommendations() {
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8">
-        <div className="text-center">
+        <div className="text-center py-12">
           <LoadingSpinner size="lg" />
           <p className="mt-4 text-gray-600">AI is analyzing your carbon profile...</p>
         </div>
@@ -225,7 +251,7 @@ export default function AIRecommendations() {
         {insights && (
           <div className="p-4 sm:p-6 bg-gradient-to-r from-indigo-50 to-purple-50">
             {isFallbackMode && (
-              <div className="mb-3 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+              <div className="mb-4 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
                 Note: These insights are based on pre-generated data while the AI service is unavailable.
               </div>
             )}
@@ -321,7 +347,7 @@ export default function AIRecommendations() {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-start space-x-3 min-w-0 flex-1">
                       <div className={`p-2 rounded-lg ${typeColors[rec.type]} flex-shrink-0`}>
-                        {typeIcons[rec.type]}
+                        {typeIcons[rec.type as keyof typeof typeIcons]}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center space-x-2 mb-1">
@@ -333,11 +359,11 @@ export default function AIRecommendations() {
                         <div className="flex flex-wrap items-center gap-2 mt-1">
                           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                             {rec.category}
-                          </span>
+                          </span> 
                           <span className={`text-xs px-2 py-1 rounded-full ${
-                            rec.priority === 'critical' ? 'bg-red-100 text-red-800' :
-                            rec.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                            rec.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                            rec.priority === 'critical' ? 'bg-red-100 text-red-800' : 
+                            rec.priority === 'high' ? 'bg-orange-100 text-orange-800' : 
+                            rec.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' : 
                             'bg-gray-100 text-gray-800'
                           }`}>
                             {rec.priority} priority
@@ -386,7 +412,7 @@ export default function AIRecommendations() {
                       <div className="flex items-center space-x-2">
                         <span className="text-sm text-gray-600">Confidence:</span>
                         <div className="flex items-center space-x-1">
-                          <div className="w-16 bg-gray-200 rounded-full h-2">
+                          <div className="w-16 bg-gray-200 rounded-full h-2 overflow-hidden">
                             <div 
                               className="bg-indigo-500 h-2 rounded-full transition-all duration-500"
                               style={{ width: `${rec.confidence}%` }}
@@ -461,7 +487,7 @@ export default function AIRecommendations() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
         <div className="flex items-center space-x-3 mb-4">
           <Brain className={`w-5 h-5 ${isFallbackMode ? 'text-yellow-600' : 'text-indigo-600'}`} />
-          <div>
+          <div className="flex-1">
             <h4 className="font-medium text-gray-900">AI Learning Progress</h4>
             <p className="text-sm text-gray-600">
               {isFallbackMode 
@@ -473,7 +499,7 @@ export default function AIRecommendations() {
         
         {isFallbackMode && (
           <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div className="flex items-start space-x-2">
+            <div className="flex items-start space-x-3">
               <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-yellow-800">AI Service Unavailable</p>
@@ -486,7 +512,7 @@ export default function AIRecommendations() {
                   <li>Rate limiting from the AI provider</li>
                   <li>Temporary service outage</li>
                 </ul>
-                <button 
+                <button
                   onClick={generateNewRecommendations}
                   className="mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-800"
                 >
@@ -497,7 +523,7 @@ export default function AIRecommendations() {
           </div>
         )}
         
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 opacity-80">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 opacity-90">
           <div>
             <div className="flex justify-between text-sm mb-1">
               <span className="text-gray-600">Model Accuracy</span>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Brain, TrendingUp, BarChart3, Zap, AlertTriangle } from 'lucide-react';
 import { aiService } from '../services/aiService';
+import { aiServiceAPI } from '../services/aiServiceAPI';
 import { useAsync } from '../hooks/useAsync';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -8,7 +9,7 @@ export default function AIInsights() {
   const [timeframe, setTimeframe] = useState<'week' | 'month' | 'quarter'>('month');
   
   const { data: behaviorAnalysis, loading: behaviorLoading } = useAsync(
-    () => aiService.analyzeBehavior({
+    () => aiServiceAPI.analyzeBehavior({
       daily_activities: [
         { date: '2024-01-15', electricity: 12, transport: 8, heating: 5 },
         { date: '2024-01-14', electricity: 11, transport: 12, heating: 6 },
@@ -21,7 +22,7 @@ export default function AIInsights() {
   );
 
   const { data: creditRecommendations, loading: creditLoading } = useAsync(
-    () => aiService.recommendCarbonCredits({
+    () => aiService.recommendCarbonCredits({ 
       budget: 500,
       impact_preference: ['forest_conservation', 'renewable_energy'],
       location_preference: ['local', 'north_america'],
@@ -31,6 +32,8 @@ export default function AIInsights() {
     []
   );
 
+  const isFallbackMode = aiService.isInFallbackMode();
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -38,13 +41,19 @@ export default function AIInsights() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="bg-purple-100 p-2 rounded-lg">
-              <Brain className="w-6 h-6 text-purple-600" />
+              <Brain className={`w-6 h-6 ${isFallbackMode ? 'text-yellow-600' : 'text-purple-600'}`} />
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">AI Insights Dashboard</h2>
               <p className="text-sm text-gray-600">Advanced analytics and behavioral patterns</p>
             </div>
           </div>
+          
+          {isFallbackMode && (
+            <div className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
+              Fallback Mode Active
+            </div>
+          )}
           
           <select
             value={timeframe}
@@ -65,6 +74,13 @@ export default function AIInsights() {
           <p className="text-sm text-gray-600">AI-powered insights into your carbon habits</p>
         </div>
 
+        {isFallbackMode && (
+          <div className="px-4 py-2 mx-6 mb-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              Note: Using pre-generated insights while AI service is unavailable.
+            </p>
+          </div>
+        )}
         <div className="p-6">
           {behaviorLoading ? (
             <div className="text-center py-8">
@@ -156,6 +172,13 @@ export default function AIInsights() {
           <p className="text-sm text-gray-600">Personalized carbon credit portfolio suggestions</p>
         </div>
 
+        {isFallbackMode && (
+          <div className="px-4 py-2 mx-6 mb-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              Note: Using pre-generated credit recommendations while AI service is unavailable.
+            </p>
+          </div>
+        )}
         <div className="p-6">
           {creditLoading ? (
             <div className="text-center py-8">

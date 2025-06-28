@@ -46,6 +46,7 @@ class AIService {
   private requestQueue: Array<() => Promise<any>> = [];
   private isProcessingQueue: boolean = false; 
   private fallbackMode: boolean = false;
+  private lastErrorMessage: string = '';
 
   constructor() {
     this.apiKey = config.ai.apiKey || '';
@@ -55,6 +56,7 @@ class AIService {
     // Check if API key is configured
     if (!this.apiKey || this.apiKey.length < 10) {
       console.warn('OpenAI API key not properly configured, enabling fallback mode');
+      this.lastErrorMessage = 'OpenAI API key not properly configured';
       this.fallbackMode = true;
     }
   }
@@ -117,6 +119,8 @@ class AIService {
       try {
         if (!this.apiKey) {
           console.warn('OpenAI API key not configured, using fallback recommendations for user profile:', userProfile);
+          this.lastErrorMessage = 'OpenAI API key not configured';
+          this.fallbackMode = true;
           return this.getFallbackRecommendations(userProfile);
         }
 
@@ -142,6 +146,7 @@ class AIService {
       } catch (error) {
         console.error('AI recommendation generation failed:', error);
         // Enable fallback mode for future requests
+        this.lastErrorMessage = error instanceof Error ? error.message : 'Unknown error generating recommendations';
         this.fallbackMode = true;
         notificationService.warning(
           'Using Fallback Recommendations',
@@ -162,6 +167,7 @@ class AIService {
       try {
         if (this.fallbackMode || !this.apiKey) {
           console.warn('OpenAI API key not configured, using fallback prediction');
+          this.lastErrorMessage = 'OpenAI API key not configured';
           return this.getFallbackPrediction(historicalData);
         }
 
@@ -195,6 +201,7 @@ class AIService {
       } catch (error) {
         console.error('Carbon prediction failed:', error);
         this.fallbackMode = true;
+        this.lastErrorMessage = error instanceof Error ? error.message : 'Unknown error predicting emissions';
         return this.getFallbackPrediction(historicalData);
       }
     });
@@ -211,6 +218,7 @@ class AIService {
       try {
         if (this.fallbackMode || !this.apiKey) {
           console.warn('OpenAI API key not configured, using fallback insights');
+          this.lastErrorMessage = 'OpenAI API key not configured';
           return this.getFallbackInsights(userData);
         }
 
@@ -245,6 +253,7 @@ class AIService {
       } catch (error) {
         console.error('Efficiency analysis failed:', error);
         this.fallbackMode = true;
+        this.lastErrorMessage = error instanceof Error ? error.message : 'Unknown error analyzing efficiency';
         return this.getFallbackInsights(userData);
       }
     });
@@ -266,6 +275,7 @@ class AIService {
       try {
         if (this.fallbackMode || !this.apiKey) {
           console.warn('OpenAI API key not configured, using fallback credit recommendations');
+          this.lastErrorMessage = 'OpenAI API key not configured';
           return this.getFallbackCreditRecommendations(preferences);
         }
 
@@ -304,6 +314,7 @@ class AIService {
       } catch (error) {
         console.error('Credit recommendation failed:', error);
         this.fallbackMode = true;
+        this.lastErrorMessage = error instanceof Error ? error.message : 'Unknown error recommending credits';
         return this.getFallbackCreditRecommendations(preferences);
       }
     });
@@ -324,6 +335,7 @@ class AIService {
       try {
         if (this.fallbackMode || !this.apiKey) {
           console.warn('OpenAI API key not configured, using fallback behavior analysis');
+          this.lastErrorMessage = 'OpenAI API key not configured';
           return this.getFallbackBehaviorAnalysis();
         }
 
@@ -357,6 +369,7 @@ class AIService {
       } catch (error) {
         console.error('Behavior analysis failed:', error);
         this.fallbackMode = true;
+        this.lastErrorMessage = error instanceof Error ? error.message : 'Unknown error analyzing behavior';
         return this.getFallbackBehaviorAnalysis();
       }
     });
@@ -366,11 +379,13 @@ class AIService {
   private async callAI(payload: any): Promise<any> {
     if (!this.apiKey) {
       this.fallbackMode = true;
+      this.lastErrorMessage = 'OpenAI API key not configured';
       throw new AppError('OpenAI API key not configured', 500);
     }
 
     if (!this.apiKey.startsWith('sk-')) {
       this.fallbackMode = true;
+      this.lastErrorMessage = 'Invalid OpenAI API key format';
       throw new AppError('Invalid OpenAI API key format', 500);
     }
 
@@ -398,18 +413,23 @@ class AIService {
 
         if (response.status === 401) {
           this.fallbackMode = true;
+          this.lastErrorMessage = 'Invalid API key';
           errorMessage = 'Invalid API key. Please check your VITE_OPENAI_API_KEY in the .env file.';
         } else if (response.status === 429) {
           this.fallbackMode = true;
+          this.lastErrorMessage = 'Rate limit exceeded';
           errorMessage = 'OpenAI rate limit exceeded. Please wait a moment and try again. Your current plan may have usage limits.';
         } else if (response.status === 403) {
           this.fallbackMode = true;
+          this.lastErrorMessage = 'API access forbidden';
           errorMessage = 'OpenAI API access forbidden. Please check your API key permissions and billing status.';
         } else if (response.status === 404 && errorMessage.includes('model')) {
           this.fallbackMode = true;
+          this.lastErrorMessage = `Model ${this.model} not available`;
           errorMessage = `The AI model "${this.model}" is not available with your API key. Try using "gpt-3.5-turbo" instead.`;
         } else if (response.status >= 500) {
           this.fallbackMode = true;
+          this.lastErrorMessage = 'OpenAI service unavailable';
           errorMessage = 'OpenAI service is temporarily unavailable. Please try again later.';
         }
 
@@ -431,10 +451,12 @@ class AIService {
       // Network or other errors
       if (error instanceof TypeError && error.message.includes('fetch')) {
         this.fallbackMode = true;
+        this.lastErrorMessage = 'Network error connecting to OpenAI';
         throw new AppError('Network error: Unable to connect to OpenAI service. Please check your internet connection.', 500);
       }
       
       this.fallbackMode = true;
+      this.lastErrorMessage = error instanceof Error ? error.message : 'Unknown OpenAI service error';
       throw new AppError(`OpenAI service error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
     }
   }
@@ -775,11 +797,17 @@ class AIService {
   // Reset fallback mode - useful for testing
   public resetFallbackMode(): void {
     this.fallbackMode = false;
+    this.lastErrorMessage = '';
   }
   
   // Check if in fallback mode
   public isInFallbackMode(): boolean {
     return this.fallbackMode;
+  }
+  
+  // Get the last error message
+  public getLastErrorMessage(): string {
+    return this.lastErrorMessage;
   }
 }
 
