@@ -57,13 +57,24 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col">
           {/* Logo and Brand */}
-          <div className="flex justify-between items-center h-12 mb-2">
+          <div className="flex justify-between items-center h-12 mb-2 relative">
             <div className="flex items-center">
-              <Leaf className="h-8 w-8 text-green-600" />
+              <div className="relative">
+                <img src="/bolt-icon.svg" alt="Bolt Icon" className="h-8 w-8" />
+                <Leaf className="h-8 w-8 text-green-600 absolute top-0 left-0 opacity-0 hover:opacity-100 transition-opacity duration-300" />
+              </div>
               <div className="ml-2">
                 <span className="text-xl font-bold text-gray-900">CarbonledgerAI</span>
                 <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">Production</span>
               </div>
+              <a 
+                href="https://bolt.new" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="ml-2 text-xs text-gray-500 hover:text-emerald-600 transition-colors duration-200"
+              >
+                Powered by Bolt.new
+              </a>
             </div>
             
             {/* Mobile menu button */}
