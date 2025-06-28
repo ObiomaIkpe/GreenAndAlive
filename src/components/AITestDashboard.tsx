@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Brain, CheckCircle, XCircle, AlertTriangle, Loader, Clock } from 'lucide-react';
 import { aiService } from '../services/aiService';
+import { openaiService } from '../services/openaiService';
 import { config } from '../config/environment';
 
 interface TestResult {
@@ -13,6 +14,7 @@ interface TestResult {
 export default function AITestDashboard() {
   const [tests, setTests] = useState<TestResult[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [fallbackMode, setFallbackMode] = useState(aiService.isInFallbackMode());
 
   const updateTest = (name: string, status: 'pending' | 'success' | 'error', message: string, duration?: number) => {
     setTests(prev => {
@@ -27,6 +29,10 @@ export default function AITestDashboard() {
   const runAITests = async () => {
     setIsRunning(true);
     setTests([]);
+    
+    // Reset fallback mode to give the API another chance
+    aiService.resetFallbackMode();
+    setFallbackMode(false);
 
     // Test 1: Configuration Check
     updateTest('Configuration', 'pending', 'Checking AI configuration...');
@@ -35,7 +41,7 @@ export default function AITestDashboard() {
     if (!config.ai.apiKey) {
       updateTest('Configuration', 'error', 'OpenAI API key not found in environment variables');
     } else if (config.ai.apiKey.startsWith('sk-') && config.ai.apiKey.length > 20) {
-      updateTest('Configuration', 'success', 'API key format is valid');
+      updateTest('Configuration', 'success', 'API key format appears valid');
     } else {
       updateTest('Configuration', 'error', 'API key format appears invalid');
     }
@@ -43,7 +49,34 @@ export default function AITestDashboard() {
     // Add delay between tests to respect rate limits
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Test 2: AI Recommendations (simplified)
+    // Test 2: OpenAI Connection Test
+    updateTest('API Connection', 'pending', 'Testing connection to OpenAI API...');
+    const connectionStartTime = Date.now();
+    
+    try {
+      const connectionResult = await openaiService.testConnection();
+      const duration = Date.now() - connectionStartTime;
+      
+      if (connectionResult.success) {
+        updateTest('API Connection', 'success', 
+          `Connected to OpenAI API successfully`, duration);
+      } else {
+        updateTest('API Connection', 'error', 
+          connectionResult.message, duration);
+        setFallbackMode(true);
+      }
+    } catch (error) {
+      const duration = Date.now() - connectionStartTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      updateTest('API Connection', 'error', 
+        `Failed: ${errorMessage}`, duration);
+      setFallbackMode(true);
+    }
+    
+    // Add delay between tests
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Test 3: AI Recommendations
     updateTest('AI Recommendations', 'pending', 'Testing recommendation generation...');
     const startTime = Date.now();
     
@@ -60,9 +93,11 @@ export default function AITestDashboard() {
       
       if (recommendations && recommendations.length > 0) {
         updateTest('AI Recommendations', 'success', 
-          `Generated ${recommendations.length} recommendations successfully`, duration);
+          `Generated ${recommendations.length} recommendations successfully${aiService.isInFallbackMode() ? ' (using fallback)' : ''}`, duration);
+        setFallbackMode(aiService.isInFallbackMode());
       } else {
         updateTest('AI Recommendations', 'error', 'No recommendations returned');
+        setFallbackMode(true);
       }
     } catch (error) {
       const duration = Date.now() - startTime;
@@ -71,16 +106,18 @@ export default function AITestDashboard() {
       if (errorMessage.includes('rate limit')) {
         updateTest('AI Recommendations', 'error', 
           'Rate limit exceeded. Please wait a few minutes before testing again.', duration);
+        setFallbackMode(true);
       } else {
         updateTest('AI Recommendations', 'error', 
           `Failed: ${errorMessage}`, duration);
+        setFallbackMode(true);
       }
     }
 
     // Add longer delay for rate limiting
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Test 3: Carbon Predictions (only if previous test succeeded)
+    // Test 4: Carbon Predictions (only if previous test succeeded)
     const recommendationTest = tests.find(t => t.name === 'AI Recommendations');
     if (recommendationTest?.status === 'success') {
       updateTest('Carbon Predictions', 'pending', 'Testing emission predictions...');
@@ -96,19 +133,24 @@ export default function AITestDashboard() {
         const duration = Date.now() - predictionStartTime;
         
         if (prediction && prediction.predictedEmissions) {
+          const fallbackNote = aiService.isInFallbackMode() ? ' (using fallback)' : '';
           updateTest('Carbon Predictions', 'success', 
-            `Predicted ${prediction.predictedEmissions.toFixed(1)} tons CO₂`, duration);
+            `Predicted ${prediction.predictedEmissions.toFixed(1)} tons CO₂${fallbackNote}`, duration);
+          setFallbackMode(aiService.isInFallbackMode());
         } else {
           updateTest('Carbon Predictions', 'error', 'Invalid prediction response');
+          setFallbackMode(true);
         }
       } catch (error) {
         const duration = Date.now() - predictionStartTime;
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         updateTest('Carbon Predictions', 'error', 
           `Failed: ${errorMessage}`, duration);
+        setFallbackMode(true);
       }
     } else {
       updateTest('Carbon Predictions', 'error', 'Skipped due to previous test failure');
+      setFallbackMode(true);
     }
 
     setIsRunning(false);
@@ -121,13 +163,31 @@ export default function AITestDashboard() {
     // Quick configuration test only
     updateTest('Quick Configuration Test', 'pending', 'Checking basic setup...');
     await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Reset fallback mode to give the API another chance
+    aiService.resetFallbackMode();
+    setFallbackMode(false);
     
     if (!config.ai.apiKey) {
       updateTest('Quick Configuration Test', 'error', 'OpenAI API key not found');
+      setFallbackMode(true);
     } else if (!config.ai.apiKey.startsWith('sk-')) {
       updateTest('Quick Configuration Test', 'error', 'Invalid API key format');
+      setFallbackMode(true);
     } else {
-      updateTest('Quick Configuration Test', 'success', 'Configuration looks good! Ready for AI features.');
+      // Try a quick connection test
+      try {
+        const result = await openaiService.testConnection();
+        if (result.success) {
+          updateTest('Quick Configuration Test', 'success', 'Configuration looks good! Ready for AI features.');
+        } else {
+          updateTest('Quick Configuration Test', 'error', `API connection failed: ${result.message}`);
+          setFallbackMode(true);
+        }
+      } catch (error) {
+        updateTest('Quick Configuration Test', 'error', `API connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        setFallbackMode(true);
+      }
     }
 
     setIsRunning(false);
@@ -164,13 +224,18 @@ export default function AITestDashboard() {
       {/* Header */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 relative">
             <div className="bg-purple-100 p-2 rounded-lg">
               <Brain className="w-6 h-6 text-purple-600" />
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">AI Integration Test Dashboard</h2>
               <p className="text-sm text-gray-600">Verify AI services are working correctly</p>
+              {fallbackMode && (
+                <span className="absolute top-0 right-0 -mt-2 px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
+                  Fallback Mode Active
+                </span>
+              )}
             </div>
           </div>
           
@@ -236,6 +301,22 @@ export default function AITestDashboard() {
       {/* Configuration Status */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Configuration Status</h3>
+        
+        {fallbackMode && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start space-x-2">
+              <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-yellow-800">AI Service in Fallback Mode</p>
+                <p className="text-xs text-yellow-700 mt-1">
+                  The system is currently using pre-generated responses instead of live AI. This provides continuity 
+                  when the AI service is unavailable.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="p-4 border border-gray-200 rounded-lg">
             <div className="flex items-center justify-between">
@@ -321,9 +402,11 @@ export default function AITestDashboard() {
       {/* Next Steps */}
       {tests.length > 0 && !isRunning && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Next Steps</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            {fallbackMode ? 'Troubleshooting Steps' : 'Next Steps'}
+          </h3>
           
-          {errorCount === 0 ? (
+          {!fallbackMode && errorCount === 0 ? (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center space-x-2">
                 <CheckCircle className="w-5 h-5 text-green-600" />
@@ -342,19 +425,31 @@ export default function AITestDashboard() {
           ) : (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-center space-x-2">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
-                <span className="font-medium text-red-900">Some tests failed</span>
+                <AlertTriangle className="w-5 h-5 text-yellow-600" />
+                <span className="font-medium text-yellow-900">
+                  {fallbackMode ? 'AI Service in Fallback Mode' : 'Some tests failed'}
+                </span>
               </div>
-              <p className="text-sm text-red-800 mt-2">
-                Common solutions for rate limit issues:
+              <p className="text-sm text-yellow-800 mt-2">
+                {fallbackMode 
+                  ? 'The application is using pre-generated responses instead of live AI. To fix this:' 
+                  : 'Common solutions for AI service issues:'}
               </p>
-              <ul className="text-sm text-red-800 mt-2 space-y-1">
-                <li>• Wait 2-3 minutes before running tests again</li>
-                <li>• Check your OpenAI account usage limits</li>
-                <li>• Verify your API key has sufficient credits</li>
-                <li>• Consider upgrading to a paid OpenAI plan</li>
-                <li>• Use "Quick Test" to verify configuration without API calls</li>
+              <ul className="text-sm text-yellow-800 mt-2 space-y-1">
+                <li>• Add a valid OpenAI API key to your .env file (VITE_OPENAI_API_KEY)</li>
+                <li>• Check your OpenAI account for sufficient credits</li>
+                <li>• Verify network connectivity to OpenAI's servers</li>
+                <li>• If rate limited, wait 2-3 minutes before trying again</li>
+                <li>• Consider using a different model (e.g., gpt-3.5-turbo instead of gpt-4)</li>
               </ul>
+              <div className="mt-3">
+                <button
+                  onClick={runQuickTest}
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                >
+                  Run Quick Test Again
+                </button>
+              </div>
             </div>
           )}
         </div>

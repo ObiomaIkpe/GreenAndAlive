@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Brain, TrendingUp, Lightbulb, Target, Coins, RefreshCw, AlertCircle, CheckCircle, X } from 'lucide-react';
+import { aiService } from '../services/aiService';
 import { aiServiceAPI, AIRecommendationAPI } from '../services/aiServiceAPI';
 import { useAsync } from '../hooks/useAsync';
 import { localStorageService } from '../services/localStorage';
@@ -20,14 +21,19 @@ export default function AIRecommendations() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Check if AI service is in fallback mode
+  const [isFallbackMode, setIsFallbackMode] = useState(aiService.isInFallbackMode());
+
   const loadRecommendations = async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await aiServiceAPI.getRecommendations({ dismissed: false });
       setRecommendations(data);
+      setIsFallbackMode(aiService.isInFallbackMode());
     } catch (err) {
       setError('Failed to load recommendations');
+      console.error('Error loading recommendations:', err);
     } finally {
       setLoading(false);
     }
@@ -65,10 +71,19 @@ export default function AIRecommendations() {
   const generateNewRecommendations = async () => {
     setLoading(true);
     try {
+      // Reset fallback mode to try using the API again
+      aiService.resetFallbackMode();
+      setIsFallbackMode(false);
+      
       await aiServiceAPI.generateRecommendations(userProfile);
       await loadRecommendations();
+      
+      // Check if we fell back to mock data
+      setIsFallbackMode(aiService.isInFallbackMode());
     } catch (err) {
       setError('Failed to generate recommendations');
+      console.error('Error generating recommendations:', err);
+      setIsFallbackMode(true);
     } finally {
       setLoading(false);
     }
@@ -144,13 +159,19 @@ export default function AIRecommendations() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">AI Service Unavailable</h3>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            {isFallbackMode ? 'Using Fallback Recommendations' : 'AI Service Unavailable'}
+          </h3>
+          <p className="text-gray-600 mb-4">
+            {isFallbackMode 
+              ? 'The AI service is currently unavailable. We\'re showing pre-generated recommendations instead.' 
+              : error}
+          </p>
           <button
             onClick={handleRefresh}
             className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
           >
-            Try Again
+            {isFallbackMode ? 'Retry AI Connection' : 'Try Again'}
           </button>
         </div>
       </div>
@@ -162,7 +183,7 @@ export default function AIRecommendations() {
       {/* Header with AI Status */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-4 sm:p-6 border-b border-gray-100">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative">
             <div className="flex items-center space-x-3">
               <div className="bg-indigo-100 p-2 rounded-lg">
                 <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
@@ -172,6 +193,13 @@ export default function AIRecommendations() {
                 <p className="text-sm text-gray-600">Personalized insights powered by advanced machine learning</p>
               </div>
             </div>
+            
+            {isFallbackMode && (
+              <div className="absolute top-0 right-0 -mt-4 sm:mt-0 sm:relative sm:mb-0 px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
+                Fallback Mode
+              </div>
+            )}
+            
             <div className="flex space-x-2">
               <button
                 onClick={handleRefresh}
@@ -196,6 +224,11 @@ export default function AIRecommendations() {
         {/* AI Insights Summary */}
         {insights && (
           <div className="p-4 sm:p-6 bg-gradient-to-r from-indigo-50 to-purple-50">
+            {isFallbackMode && (
+              <div className="mb-3 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                Note: These insights are based on pre-generated data while the AI service is unavailable.
+              </div>
+            )}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="text-center">
                 <div className="text-xl sm:text-2xl font-bold text-indigo-600">{insights.behavior_score}</div>
@@ -221,7 +254,14 @@ export default function AIRecommendations() {
       {/* Carbon Prediction */}
       {prediction && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Carbon Emission Prediction</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Carbon Emission Prediction</h3>
+            {isFallbackMode && (
+              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
+                Fallback Data
+              </span>
+            )}
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-blue-50 rounded-lg p-4">
               <div className="text-xl sm:text-2xl font-bold text-blue-600">{prediction.predictedEmissions.toFixed(1)} tons</div>
@@ -252,11 +292,16 @@ export default function AIRecommendations() {
       {/* AI Recommendations */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-4 sm:p-6 border-b border-gray-100">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between relative">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Personalized Recommendations</h3>
               <p className="text-sm text-gray-600">AI-generated suggestions based on your profile and behavior patterns</p>
             </div>
+            {isFallbackMode && (
+              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
+                Fallback Mode
+              </span>
+            )}
             <div className="text-sm text-gray-500">
               {recommendations.filter(r => r.implemented).length} implemented • {recommendations.filter(r => r.dismissed).length} dismissed
             </div>
@@ -415,13 +460,44 @@ export default function AIRecommendations() {
       {/* AI Learning Progress */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
         <div className="flex items-center space-x-3 mb-4">
-          <Brain className="w-5 h-5 text-indigo-600" />
+          <Brain className={`w-5 h-5 ${isFallbackMode ? 'text-yellow-600' : 'text-indigo-600'}`} />
           <div>
             <h4 className="font-medium text-gray-900">AI Learning Progress</h4>
-            <p className="text-sm text-gray-600">Your AI assistant becomes more accurate with each interaction</p>
+            <p className="text-sm text-gray-600">
+              {isFallbackMode 
+                ? 'AI service is in fallback mode - using pre-generated data' 
+                : 'Your AI assistant becomes more accurate with each interaction'}
+            </p>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        
+        {isFallbackMode && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start space-x-2">
+              <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-yellow-800">AI Service Unavailable</p>
+                <p className="text-xs text-yellow-700 mt-1">
+                  The AI service is currently unavailable. This could be due to:
+                </p>
+                <ul className="text-xs text-yellow-700 mt-1 space-y-1 list-disc pl-4">
+                  <li>Missing or invalid API key in environment variables</li>
+                  <li>Network connectivity issues</li>
+                  <li>Rate limiting from the AI provider</li>
+                  <li>Temporary service outage</li>
+                </ul>
+                <button 
+                  onClick={generateNewRecommendations}
+                  className="mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                >
+                  Try reconnecting to AI service
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 opacity-80">
           <div>
             <div className="flex justify-between text-sm mb-1">
               <span className="text-gray-600">Model Accuracy</span>
