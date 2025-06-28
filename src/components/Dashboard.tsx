@@ -1,16 +1,45 @@
 import React from 'react';
 import { Leaf, TrendingUp, Award, AlertCircle } from 'lucide-react';
 import { UserPortfolio } from '../types';
+import { testBackendConnection } from '../services/authService';
 
 interface Props {
   portfolio: UserPortfolio;
 }
 
 export default function Dashboard({ portfolio }: Props) {
+  const [backendStatus, setBackendStatus] = useState<boolean | null>(null);
   const progressPercentage = Math.min((portfolio.monthlyOffset / portfolio.reductionGoal) * 100, 100);
+
+  // Test backend connection on component mount
+  useEffect(() => {
+    const checkBackend = async () => {
+      const isConnected = await testBackendConnection();
+      setBackendStatus(isConnected);
+    };
+    checkBackend();
+  }, []);
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <div className="flex items-center space-x-4">
+          {/* Backend Status Indicator */}
+          <div className="flex items-center space-x-2">
+            <div className={`w-3 h-3 rounded-full ${
+              backendStatus === null ? 'bg-yellow-400' : 
+              backendStatus ? 'bg-green-400' : 'bg-red-400'
+            }`}></div>
+            <span className="text-sm text-gray-600">
+              {backendStatus === null ? 'Checking...' : 
+               backendStatus ? 'Backend Connected' : 'Backend Offline'}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Header Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300">

@@ -2,6 +2,18 @@ import { supabase } from './supabaseClient';
 import { notificationService } from './notificationService';
 import { localStorageService } from './localStorage';
 import { aiMetricsService } from './aiMetricsService';
+import { API_CONFIG } from '../config/environment';
+
+// Test backend connection
+export const testBackendConnection = async (): Promise<boolean> => {
+  try {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/api/health`);
+    return response.ok;
+  } catch (error) {
+    console.error('Backend connection test failed:', error);
+    return false;
+  }
+};
 
 export interface LoginCredentials {
   email: string;
