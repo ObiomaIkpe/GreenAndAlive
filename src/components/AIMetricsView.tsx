@@ -182,7 +182,6 @@ export default function AIMetricsView() {
           </button>
         </div>
       </div>
-
       {activeTab === 'usage' && (
         <div>
           {/* Summary Stats */}
