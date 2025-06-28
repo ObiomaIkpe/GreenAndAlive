@@ -1,4 +1,3 @@
-import React from 'react';
 import React, { useState, useEffect } from 'react';
 import { Leaf, TrendingUp, Award, AlertCircle } from 'lucide-react';
 import { UserPortfolio } from '../types';
