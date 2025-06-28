@@ -49,8 +49,10 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
         <div className="flex flex-col">
           {/* Logo and Brand */}
           <div className="flex justify-between items-center h-12 mb-2">
-            <Leaf className="h-8 w-8 text-green-600" />
-            <span className="ml-2 text-xl font-bold text-gray-900">CarbonAI</span>
+            <div className="flex items-center">
+              <Leaf className="h-8 w-8 text-green-600" />
+              <span className="ml-2 text-xl font-bold text-gray-900">CarbonledgerAI</span>
+            </div>
             
             {/* Mobile menu button */}
             <div className="md:hidden">

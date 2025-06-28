@@ -179,6 +179,7 @@ class AuthService {
       };
       
       notificationService.success('Registration Successful', 'Welcome to CarbonAI!');
+      notificationService.success('Registration Successful', 'Welcome to CarbonledgerAI!');
       
       return this.currentUser;
     } catch (error) {
