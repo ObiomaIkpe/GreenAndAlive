@@ -27,7 +27,8 @@ export const config = {
   
   // Blockchain Configuration
   blockchain: {
-    contractAddress: import.meta.env.VITE_CONTRACT_ADDRESS || '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6',
+    contractAddress: import.meta.env.VITE_CONTRACT_ADDRESS || '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6', // Carbon Credit NFT Contract
+    tokenAddress: import.meta.env.VITE_TOKEN_ADDRESS || '0x1234567890123456789012345678901234567890', // CARB Token Contract
     networkId: import.meta.env.VITE_NETWORK_ID || '1',
     rpcUrl: import.meta.env.VITE_RPC_URL || 'https://mainnet.infura.io/v3/YOUR_PROJECT_ID',
     explorerUrl: import.meta.env.VITE_EXPLORER_URL || 'https://etherscan.io'
