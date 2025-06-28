@@ -46,57 +46,53 @@ class AuthService {
 
   async login(credentials: LoginCredentials): Promise<User> {
     try {
-      let userData;
-      let error;
+      // Call the backend API for login
+      const response = await fetch(`${config.api.baseUrl || 'https://carbonledgerai-backend.onrender.com'}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(credentials),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Login failed');
+      }
+
+      const data = await response.json();
       
-      try {
-        const { data, error: authError } = await supabase.auth.signInWithPassword({
-          email: credentials.email,
-          password: credentials.password,
-        });
-        
-        if (authError) throw authError;
-        userData = data;
-      } catch (e) {
-        console.warn('Supabase auth error, using fallback:', e);
-        // Fallback to mock data for demo/development
-        if (credentials.email === 'demo@example.com' && credentials.password === 'password') {
-          // Mock successful login
-          this.currentUser = this.getMockUser();
-          notificationService.success('Login Successful', `Welcome back, ${this.currentUser.firstName || this.currentUser.email}!`);
-          return this.currentUser;
-        } else {
-          error = new Error('Invalid email or password');
-        }
-      }
+      // Set the auth token in localStorage and API service
+      localStorage.setItem('carbonledgerai_auth_token', data.token);
+      
+      // Format user data
+      this.currentUser = {
+        id: data.user.id,
+        email: data.user.email,
+        firstName: data.user.firstName,
+        lastName: data.user.lastName,
+        walletAddress: data.user.walletAddress,
+        totalCredits: data.user.totalCredits || 0,
+        totalValue: data.user.totalValue || 0,
+        monthlyOffset: data.user.monthlyOffset || 0,
+        reductionGoal: data.user.reductionGoal || 24,
+        tokenBalance: data.user.tokenBalance || 0,
+        stakingRewards: data.user.stakingRewards || 0,
+        reputationScore: data.user.reputationScore || 50,
+        achievements: data.user.achievements || [],
+        preferences: data.user.preferences || {
+          location: 'San Francisco, CA',
+          lifestyle: ['urban', 'tech_worker'],
+          budget: 500,
+          notifications: true,
+          theme: 'light',
+          preferences: ['renewable_energy', 'forest_conservation'],
+          riskTolerance: 'medium',
+        },
+      };
 
-      if (error) throw error;
-
-      // Get user profile data
-      try {
-        const { data: profileData, error: userError } = await supabase
-          .from('users')
-          .select(`
-            *,
-            user_preferences(*)
-          `)
-          .eq('id', userData.user.id)
-          .single();
-
-        if (userError) throw userError;
-        
-        // Format user data to match our interface
-        this.currentUser = this.formatUserData(profileData);
-      } catch (e) {
-        console.warn('Supabase profile fetch error, using mock data:', e);
-        // Fallback to mock data
-        this.currentUser = this.getMockUser();
-      }
-
-      // Sync any locally stored AI metrics to the database
-      if (userData?.user?.id) {
-        aiMetricsService.syncLocalMetrics(userData.user.id);
-      }
+      // Sync any locally stored AI metrics
+      aiMetricsService.syncLocalMetrics(data.user.id);
 
       notificationService.success('Login Successful', `Welcome back, ${this.currentUser.firstName || this.currentUser.email}!`);
       
@@ -109,119 +105,51 @@ class AuthService {
 
   async register(data: RegisterData): Promise<User> {
     try {
-      // Register with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
+      // Call the backend API for registration
+      const response = await fetch(`${config.api.baseUrl || 'https://carbonledgerai-backend.onrender.com'}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
       });
 
-      if (authError) throw authError;
-
-      // Create user profile
-      let userData;
-      try {
-        const { data, error: userError } = await supabase
-        .from('users')
-        .insert({
-          id: authData.user?.id,
-          email: data.email,
-          first_name: data.firstName,
-          last_name: data.lastName,
-          wallet_address: data.walletAddress,
-          total_credits: 0,
-          total_value: 0,
-          monthly_offset: 0,
-          reduction_goal: 24,
-          token_balance: 0,
-          staking_rewards: 0,
-          reputation_score: 50,
-          achievements: [],
-        })
-        .select()
-        .single();
-        
-        if (userError) throw userError;
-        userData = data;
-      } catch (e) {
-        console.warn('Failed to create user profile, using mock data:', e);
-        userData = {
-          id: authData.user?.id,
-          email: data.email,
-          first_name: data.firstName,
-          last_name: data.lastName,
-          wallet_address: data.walletAddress,
-          total_credits: 0,
-          total_value: 0,
-          monthly_offset: 0,
-          reduction_goal: 24,
-          token_balance: 0,
-          staking_rewards: 0,
-          reputation_score: 50,
-          achievements: [],
-        };
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Registration failed');
       }
 
-      // Create user preferences
-      let preferencesData;
-      try {
-        const { data, error: preferencesError } = await supabase
-        .from('user_preferences')
-        .insert({
-          user_id: authData.user?.id,
-          location: 'San Francisco, CA',
-          lifestyle: ['urban', 'tech_worker'],
-          budget: 500,
-          notifications: true,
-          theme: 'light',
-          preferences: ['renewable_energy', 'forest_conservation'],
-          risk_tolerance: 'medium',
-        })
-        .select()
-        .single();
-        
-        if (preferencesError) throw preferencesError;
-        preferencesData = data;
-      } catch (e) {
-        console.warn('Failed to create user preferences, using mock data:', e);
-        preferencesData = {
-          user_id: authData.user?.id,
-          location: 'San Francisco, CA',
-          lifestyle: ['urban', 'tech_worker'],
-          budget: 500,
-          notifications: true,
-          theme: 'light',
-          preferences: ['renewable_energy', 'forest_conservation'],
-          risk_tolerance: 'medium',
-        };
-      }
-
-      // Format user data
+      const responseData = await response.json();
+      
+      // Set the auth token in localStorage
+      localStorage.setItem('carbonledgerai_auth_token', responseData.token);
+      
+      // Format user data to match our interface
       this.currentUser = {
-        id: userData.id,
-        email: userData.email,
-        firstName: userData.first_name,
-        lastName: userData.last_name,
-        walletAddress: userData.wallet_address,
-        totalCredits: userData.total_credits,
-        totalValue: userData.total_value,
-        monthlyOffset: userData.monthly_offset,
-        reductionGoal: userData.reduction_goal,
-        tokenBalance: userData.token_balance,
-        stakingRewards: userData.staking_rewards,
-        reputationScore: userData.reputation_score,
-        achievements: userData.achievements || [],
+        id: responseData.user.id,
+        email: responseData.user.email,
+        firstName: responseData.user.firstName,
+        lastName: responseData.user.lastName,
+        walletAddress: responseData.user.walletAddress,
+        totalCredits: 0,
+        totalValue: 0,
+        monthlyOffset: 0,
+        reductionGoal: 24,
+        tokenBalance: 0,
+        stakingRewards: 0,
+        reputationScore: 50,
+        achievements: [],
         preferences: {
-          location: preferencesData.location,
-          lifestyle: preferencesData.lifestyle,
-          budget: preferencesData.budget,
-          notifications: preferencesData.notifications,
-          theme: preferencesData.theme,
-          preferences: preferencesData.preferences,
-          riskTolerance: preferencesData.risk_tolerance,
+          location: 'San Francisco, CA',
+          lifestyle: ['urban', 'tech_worker'],
+          budget: 500,
+          notifications: true,
+          theme: 'light',
+          preferences: ['renewable_energy', 'forest_conservation'],
+          riskTolerance: 'medium',
         },
       };
       
-      notificationService.success('Registration Successful', 'Welcome to CarbonledgerAI!');
       notificationService.success('Registration Successful', 'Welcome to CarbonledgerAI!');
       
       return this.currentUser;
@@ -233,13 +161,8 @@ class AuthService {
 
   async logout(): Promise<void> {
     try {
-      try {
-        await supabase.auth.signOut();
-      } catch (e) {
-        console.warn('Supabase signOut error, using fallback:', e);
-        // Clear mock session if using fallback
-        localStorage.removeItem('mockUserSession');
-      }
+      // Clear auth token
+      localStorage.removeItem('carbonledgerai_auth_token');
       
       this.currentUser = null;
       notificationService.info('Logged Out', 'You have been successfully logged out');
@@ -252,38 +175,56 @@ class AuthService {
     if (this.currentUser) {
       return this.currentUser; 
     }
+    
+    // Check if we have a token
+    const token = localStorage.getItem('carbonledgerai_auth_token');
+    if (!token) {
+      return null;
+    }
 
     try {
-      try {
-        const { data: authData } = await supabase.auth.getUser();
-        
-        if (!authData.user) return null;
+      // Call the backend API to get user profile
+      const response = await fetch(`${config.api.baseUrl || 'https://carbonledgerai-backend.onrender.com'}/api/users/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
-        // Get user profile data
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select(`
-            *,
-            user_preferences(*)
-          `)
-          .eq('id', authData.user.id)
-          .single();
-
-        if (userError) throw userError;
-
-        // Format user data
-        this.currentUser = this.formatUserData(userData);
-        return this.currentUser;
-      } catch (e) {
-        console.warn('Supabase getCurrentUser error, checking localStorage fallback:', e);
-        // Check if we have a mock session in localStorage
-        const mockSession = localStorage.getItem('mockUserSession');
-        if (mockSession === 'true') {
-          this.currentUser = this.getMockUser();
-          return this.currentUser;
-        }
+      if (!response.ok) {
+        // If token is invalid, clear it
+        localStorage.removeItem('carbonledgerai_auth_token');
         return null;
       }
+
+      const data = await response.json();
+      
+      // Format user data
+      this.currentUser = {
+        id: data.user.id,
+        email: data.user.email,
+        firstName: data.user.firstName,
+        lastName: data.user.lastName,
+        walletAddress: data.user.walletAddress,
+        totalCredits: data.user.totalCredits || 0,
+        totalValue: data.user.totalValue || 0,
+        monthlyOffset: data.user.monthlyOffset || 0,
+        reductionGoal: data.user.reductionGoal || 24,
+        tokenBalance: data.user.tokenBalance || 0,
+        stakingRewards: data.user.stakingRewards || 0,
+        reputationScore: data.user.reputationScore || 50,
+        achievements: data.user.achievements || [],
+        preferences: data.user.preferences || {
+          location: 'San Francisco, CA',
+          lifestyle: ['urban', 'tech_worker'],
+          budget: 500,
+          notifications: true,
+          theme: 'light',
+          preferences: ['renewable_energy', 'forest_conservation'],
+          riskTolerance: 'medium',
+        },
+      };
+      
+      return this.currentUser;
     } catch (error) {
       console.error('Get current user error:', error);
       return null;
@@ -293,26 +234,37 @@ class AuthService {
   async updateProfile(data: Partial<User>): Promise<User> {
     try {
       if (!this.currentUser) throw new Error('User not authenticated');
+      
+      const token = localStorage.getItem('carbonledgerai_auth_token');
+      if (!token) throw new Error('Not authenticated');
 
-      const { data: userData, error } = await supabase
-        .from('users')
-        .update({
-          first_name: data.firstName,
-          last_name: data.lastName,
-          wallet_address: data.walletAddress,
-        })
-        .eq('id', this.currentUser.id)
-        .select()
-        .single();
+      // Call the backend API to update profile
+      const response = await fetch(`${config.api.baseUrl || 'https://carbonledgerai-backend.onrender.com'}/api/users/profile`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          firstName: data.firstName,
+          lastName: data.lastName,
+          walletAddress: data.walletAddress,
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Profile update failed');
+      }
+
+      const responseData = await response.json();
 
       // Update current user
       this.currentUser = {
         ...this.currentUser,
-        firstName: userData.first_name,
-        lastName: userData.last_name,
-        walletAddress: userData.wallet_address,
+        firstName: responseData.user.firstName,
+        lastName: responseData.user.lastName,
+        walletAddress: responseData.user.walletAddress,
       };
       
       notificationService.success('Profile Updated', 'Your profile has been updated successfully');
@@ -327,35 +279,46 @@ class AuthService {
   async updatePreferences(preferences: Partial<User['preferences']>): Promise<User> {
     try {
       if (!this.currentUser) throw new Error('User not authenticated');
+      
+      const token = localStorage.getItem('carbonledgerai_auth_token');
+      if (!token) throw new Error('Not authenticated');
 
-      const { data: preferencesData, error } = await supabase
-        .from('user_preferences')
-        .update({
+      // Call the backend API to update preferences
+      const response = await fetch(`${config.api.baseUrl || 'https://carbonledgerai-backend.onrender.com'}/api/users/preferences`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
           location: preferences.location,
           lifestyle: preferences.lifestyle,
           budget: preferences.budget,
           notifications: preferences.notifications,
           theme: preferences.theme,
           preferences: preferences.preferences,
-          risk_tolerance: preferences.riskTolerance,
-        })
-        .eq('user_id', this.currentUser.id)
-        .select()
-        .single();
+          riskTolerance: preferences.riskTolerance,
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Preferences update failed');
+      }
+
+      const responseData = await response.json();
 
       // Update current user
       if (this.currentUser.preferences) {
         this.currentUser.preferences = {
           ...this.currentUser.preferences,
-          location: preferencesData.location,
-          lifestyle: preferencesData.lifestyle,
-          budget: preferencesData.budget,
-          notifications: preferencesData.notifications,
-          theme: preferencesData.theme,
-          preferences: preferencesData.preferences,
-          riskTolerance: preferencesData.risk_tolerance,
+          location: responseData.preferences.location,
+          lifestyle: responseData.preferences.lifestyle,
+          budget: responseData.preferences.budget,
+          notifications: responseData.preferences.notifications,
+          theme: responseData.preferences.theme,
+          preferences: responseData.preferences.preferences,
+          riskTolerance: responseData.preferences.riskTolerance,
         };
       }
       

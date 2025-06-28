@@ -34,76 +34,57 @@ class CarbonService {
 
   async calculateFootprint(data: CarbonFootprintData): Promise<CarbonFootprint> {
     try {
-      let footprint;
-      let totalEmissions = this.utilsService.calculateCarbonFootprint(data);
+      const currentUser = authService.getUser();
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
       
-      try {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('User not authenticated');
-
-        // Insert into database
-        const { data: dbFootprint, error } = await supabase
-          .from('carbon_footprints')
-          .insert({
-            user_id: user.id,
-            electricity: data.electricity,
-            transportation: data.transportation,
-            heating: data.heating,
-            air_travel: data.airTravel,
-            total_emissions: totalEmissions,
-            calculation_date: new Date().toISOString(),
-            notes: data.notes,
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        footprint = dbFootprint;
-      } catch (e) {
-        console.warn('Supabase carbon footprint save error, using fallback:', e);
-        // Fallback to mock data
-        const currentUser = authService.getUser();
-        const userId = currentUser?.id || 'mock-user-id';
-        
-        // Create mock footprint
-        footprint = {
-          id: `mock-footprint-${Date.now()}`,
-          user_id: userId,
+      const token = localStorage.getItem('carbonledgerai_auth_token');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+      
+      // Call the backend API to calculate footprint
+      const response = await fetch(`${config.api.baseUrl || 'https://carbonledgerai-backend.onrender.com'}/api/carbon/footprint`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
           electricity: data.electricity,
           transportation: data.transportation,
           heating: data.heating,
-          air_travel: data.airTravel,
-          total_emissions: totalEmissions,
-          calculation_date: new Date().toISOString(),
+          airTravel: data.airTravel,
           notes: data.notes,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        
-        // Store in localStorage as fallback
-        const existingFootprints = JSON.parse(localStorage.getItem('mockCarbonFootprints') || '[]');
-        existingFootprints.unshift(footprint);
-        localStorage.setItem('mockCarbonFootprints', JSON.stringify(existingFootprints.slice(0, 10)));
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to calculate carbon footprint');
       }
+
+      const responseData = await response.json();
+      const footprint = responseData.footprint;
       
       notificationService.success(
         'Carbon Footprint Calculated',
-        `Your carbon footprint is ${totalEmissions.toFixed(1)} tons CO₂/year`
+        `Your carbon footprint is ${footprint.totalEmissions.toFixed(1)} tons CO₂/year`
       );
       
       return {
         id: footprint.id,
-        userId: footprint.user_id,
+        userId: footprint.userId,
         electricity: footprint.electricity,
         transportation: footprint.transportation,
         heating: footprint.heating,
-        airTravel: footprint.air_travel,
-        totalEmissions: footprint.total_emissions,
-        calculationDate: footprint.calculation_date,
+        airTravel: footprint.airTravel,
+        totalEmissions: footprint.totalEmissions,
+        calculationDate: footprint.calculationDate,
         notes: footprint.notes || undefined,
-        createdAt: footprint.created_at,
-        updatedAt: footprint.updated_at,
+        createdAt: footprint.createdAt,
+        updatedAt: footprint.updatedAt || footprint.createdAt,
       };
     } catch (error) {
       notificationService.error('Calculation Failed', 'Failed to calculate carbon footprint');
@@ -113,47 +94,30 @@ class CarbonService {
 
   async getFootprintHistory(): Promise<CarbonFootprint[]> {
     try {
-      let footprints;
-      
-      try {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('User not authenticated');
-
-        // Get footprint history
-        const { data: dbFootprints, error } = await supabase
-          .from('carbon_footprints')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        footprints = dbFootprints;
-      } catch (e) {
-        console.warn('Supabase footprint history fetch error, using fallback:', e);
-        // Fallback to localStorage
-        footprints = JSON.parse(localStorage.getItem('mockCarbonFootprints') || '[]');
-        
-        // If no mock data exists, create some
-        if (footprints.length === 0) {
-          footprints = this.getMockFootprints();
-          localStorage.setItem('mockCarbonFootprints', JSON.stringify(footprints));
-        }
+      const currentUser = authService.getUser();
+      if (!currentUser) {
+        throw new Error('User not authenticated');
       }
       
-      return footprints.map(fp => ({
-        id: fp.id,
-        userId: fp.user_id,
-        electricity: fp.electricity,
-        transportation: fp.transportation,
-        heating: fp.heating,
-        airTravel: fp.air_travel,
-        totalEmissions: fp.total_emissions,
-        calculationDate: fp.calculation_date,
-        notes: fp.notes || undefined,
-        createdAt: fp.created_at,
-        updatedAt: fp.updated_at,
-      }));
+      const token = localStorage.getItem('carbonledgerai_auth_token');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+      
+      // Call the backend API to get footprint history
+      const response = await fetch(`${config.api.baseUrl || 'https://carbonledgerai-backend.onrender.com'}/api/carbon/footprint`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to load carbon footprint history');
+      }
+
+      const responseData = await response.json();
+      return responseData.footprints;
     } catch (error) {
       notificationService.error('Load Failed', 'Failed to load carbon footprint history');
       throw error;
@@ -162,58 +126,33 @@ class CarbonService {
 
   async getLatestFootprint(): Promise<CarbonFootprint | null> {
     try {
-      let footprint;
-      
-      try {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('User not authenticated');
-
-        // Get latest footprint
-        const { data: dbFootprint, error } = await supabase
-          .from('carbon_footprints')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (error) {
-          if (error.code === 'PGRST116') return null; // No rows returned
-          throw error;
-        }
-        
-        footprint = dbFootprint;
-      } catch (e) {
-        console.warn('Supabase latest footprint fetch error, using fallback:', e);
-        // Fallback to localStorage
-        const mockFootprints = JSON.parse(localStorage.getItem('mockCarbonFootprints') || '[]');
-        
-        if (mockFootprints.length > 0) {
-          footprint = mockFootprints[0];
-        } else {
-          // Create a mock footprint if none exists
-          const mockFootprints = this.getMockFootprints();
-          localStorage.setItem('mockCarbonFootprints', JSON.stringify(mockFootprints));
-          footprint = mockFootprints[0];
-        }
+      const currentUser = authService.getUser();
+      if (!currentUser) {
+        return null;
       }
       
-      if (!footprint) return null;
+      const token = localStorage.getItem('carbonledgerai_auth_token');
+      if (!token) {
+        return null;
+      }
       
-      return {
-        id: footprint.id,
-        userId: footprint.user_id,
-        electricity: footprint.electricity,
-        transportation: footprint.transportation,
-        heating: footprint.heating,
-        airTravel: footprint.air_travel,
-        totalEmissions: footprint.total_emissions,
-        calculationDate: footprint.calculation_date,
-        notes: footprint.notes || undefined,
-        createdAt: footprint.created_at,
-        updatedAt: footprint.updated_at,
-      };
+      // Call the backend API to get latest footprint
+      const response = await fetch(`${config.api.baseUrl || 'https://carbonledgerai-backend.onrender.com'}/api/carbon/footprint/latest`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to load latest carbon footprint');
+      }
+
+      const responseData = await response.json();
+      return responseData.footprint;
     } catch (error) {
       console.error('Get latest footprint error:', error);
       return null;

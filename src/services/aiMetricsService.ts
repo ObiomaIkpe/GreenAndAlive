@@ -180,47 +180,26 @@ class AIMetricsService {
    */
   public async getUserMetrics(days: number = 30): Promise<any> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
+      const currentUser = authService.getUser();
+      if (!currentUser) return null;
       
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      const token = localStorage.getItem('carbonledgerai_auth_token');
+      if (!token) return null;
       
-      const { data, error } = await supabase
-        .from('ai_usage_metrics')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('created_at', startDate.toISOString())
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      // Calculate summary statistics
-      const totalRequests = data.length;
-      const successfulRequests = data.filter(m => m.success).length;
-      const fallbackUsage = data.filter(m => m.fallback_used).length;
-      const totalTokens = data.reduce((sum, m) => sum + (m.tokens_used || 0), 0);
-      const avgResponseTime = data.length > 0 
-        ? data.reduce((sum, m) => sum + (m.response_time || 0), 0) / data.length 
-        : 0;
-      
-      // Group by request type
-      const requestTypes = data.reduce((acc, m) => {
-        acc[m.request_type] = (acc[m.request_type] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-      
-      return {
-        metrics: data,
-        summary: {
-          totalRequests,
-          successRate: totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0,
-          fallbackRate: totalRequests > 0 ? (fallbackUsage / totalRequests) * 100 : 0,
-          totalTokens,
-          avgResponseTime,
-          requestTypes
-        }
-      };
+      // Call the backend API to get metrics
+      const response = await fetch(`${config.api.baseUrl || 'https://carbonledgerai-backend.onrender.com'}/api/ai/metrics?days=${days}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch AI metrics');
+      }
+
+      const responseData = await response.json();
+      return responseData.metrics.usage;
     } catch (error) {
       console.error('Failed to get user metrics:', error);
       return null;

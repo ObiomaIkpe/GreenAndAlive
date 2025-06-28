@@ -72,68 +72,40 @@ class AIServiceAPI {
     dismissed?: boolean;
   }): Promise<AIRecommendationAPI[]> {
     try {
-      let data;
-      let usedFallback = false;
-
-      try {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('User not authenticated');
-        
-        // Build query
-        let query = supabase
-          .from('ai_recommendations')
-          .select('*')
-          .eq('user_id', user.id);
-        
-        if (filters?.type) {
-          query = query.eq('type', filters.type);
-        }
-        
-        if (filters?.implemented !== undefined) {
-          query = query.eq('implemented', filters.implemented);
-        }
-        
-        if (filters?.dismissed !== undefined) {
-          query = query.eq('dismissed', filters.dismissed);
-        }
-        
-        const { data: recommendations, error } = await query.order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        data = recommendations;
-      } catch (e) {
-        console.warn('Supabase recommendations fetch error, using localStorage fallback:', e);
-        usedFallback = true;
-        // Fallback to mock data
-        data = JSON.parse(localStorage.getItem('mockRecommendations') || '[]');
-        
-        // If no mock data exists, create some
-        if (data.length === 0) {
-          data = this.getMockRecommendations();
-          localStorage.setItem('mockRecommendations', JSON.stringify(data));
-        }
-        
-        // Apply filters to mock data
-        if (filters?.type) {
-          data = data.filter(rec => rec.type === filters.type);
-        }
-        
-        if (filters?.implemented !== undefined) {
-          data = data.filter(rec => rec.implemented === filters.implemented);
-        }
-        
-        if (filters?.dismissed !== undefined) {
-          data = data.filter(rec => rec.dismissed === filters.dismissed);
-        }
-      }
-
-      // If we had to use fallback data, notify the user
-      if (usedFallback) {
-        console.log('Using fallback recommendations from localStorage');
+      const currentUser = authService.getUser();
+      if (!currentUser) {
+        throw new Error('User not authenticated');
       }
       
-      return data.map(rec => this.formatRecommendation(rec));
+      const token = localStorage.getItem('carbonledgerai_auth_token');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+      
+      // Build query string
+      let queryString = '';
+      if (filters) {
+        const params = new URLSearchParams();
+        if (filters.type) params.append('type', filters.type);
+        if (filters.implemented !== undefined) params.append('implemented', String(filters.implemented));
+        if (filters.dismissed !== undefined) params.append('dismissed', String(filters.dismissed));
+        queryString = params.toString() ? `?${params.toString()}` : '';
+      }
+      
+      // Call the backend API to get recommendations
+      const response = await fetch(`${config.api.baseUrl || 'https://carbonledgerai-backend.onrender.com'}/api/ai/recommendations${queryString}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to load AI recommendations');
+      }
+
+      const responseData = await response.json();
+      return responseData.recommendations;
     } catch (error) {
       notificationService.error('Load Failed', 'Failed to load AI recommendations');
       throw error;
@@ -142,97 +114,39 @@ class AIServiceAPI {
 
   async generateRecommendations(data: GenerateRecommendationsRequest): Promise<AIRecommendationAPI[]> {
     try {
-      let savedRecommendations = [];
-      let usedFallback = false;
-      
-      try {
-        // First try to use the aiService to generate real recommendations
-        const aiRecommendations = await aiService.generateRecommendations(data);
-        
-        if (aiRecommendations && aiRecommendations.length > 0) {
-          // Get current user
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) throw new Error('User not authenticated');
-          
-          // Save recommendations to database
-          for (const rec of aiRecommendations) {
-            const { data: savedRec, error } = await supabase
-              .from('ai_recommendations')
-              .insert({
-                user_id: user.id,
-                type: rec.type,
-                title: rec.title,
-                description: rec.description,
-                impact: rec.impact,
-                confidence: rec.confidence,
-                category: rec.category,
-                reward_potential: rec.rewardPotential,
-                action_steps: rec.actionSteps,
-                estimated_cost: rec.estimatedCost,
-                timeframe: rec.timeframe,
-                priority: rec.priority,
-                implemented: false,
-                dismissed: false,
-              })
-              .select()
-              .single();
-            
-            if (error) throw error;
-            
-            savedRecommendations.push(this.formatRecommendation(savedRec));
-          }
-        } else {
-          throw new Error('No recommendations generated by AI service');
-        }
-          
-      } catch (e) {
-        console.warn('AI or Supabase recommendations generation error, using fallback:', e);
-        usedFallback = true;
-        
-        // Fallback to mock data
-        const mockRecommendations = this.getMockRecommendations(data);
-        const currentUser = authService.getUser();
-        const userId = currentUser?.id || 'mock-user-id';
-        
-        // Create mock recommendations
-        savedRecommendations = mockRecommendations.map((rec, index) => ({
-          id: `mock-rec-${Date.now()}-${index}`,
-          user_id: userId,
-          type: rec.type,
-          title: rec.title,
-          description: rec.description,
-          impact: rec.impact,
-          confidence: rec.confidence,
-          category: rec.category,
-          reward_potential: rec.rewardPotential,
-          action_steps: rec.actionSteps,
-          estimated_cost: rec.estimatedCost,
-          timeframe: rec.timeframe,
-          priority: rec.priority,
-          implemented: false,
-          dismissed: false,
-          implementation_notes: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }));
-        
-        // Store in localStorage
-        localStorage.setItem('mockRecommendations', JSON.stringify(savedRecommendations));
+      const currentUser = authService.getUser();
+      if (!currentUser) {
+        throw new Error('User not authenticated');
       }
       
-      if (usedFallback) {
-        notificationService.warning(
-          'Using Fallback Recommendations',
-          'AI service unavailable. Using pre-generated recommendations instead.'
-        );
-      } else {
-        notificationService.success(
-          'AI Recommendations Generated',
-          `Generated ${savedRecommendations.length} personalized recommendations`
-        );
+      const token = localStorage.getItem('carbonledgerai_auth_token');
+      if (!token) {
+        throw new Error('Not authenticated');
       }
       
-      return savedRecommendations;
+      // Call the backend API to generate recommendations
+      const response = await fetch(`${config.api.baseUrl || 'https://carbonledgerai-backend.onrender.com'}/api/ai/recommendations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate recommendations');
+      }
+
+      const responseData = await response.json();
+      
+      notificationService.success(
+        'AI Recommendations Generated',
+        `Generated ${responseData.recommendations.length} personalized recommendations`
+      );
+      
+      return responseData.recommendations;
     } catch (error) {
       notificationService.error('AI Service Error', 'Failed to generate recommendations');
       throw error;
@@ -241,50 +155,39 @@ class AIServiceAPI {
 
   async implementRecommendation(id: string, notes?: string): Promise<AIRecommendationAPI> {
     try {
-      let data;
-      
-      try {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('User not authenticated');
-        
-        // Update recommendation
-        const { data: updatedRec, error } = await supabase
-          .from('ai_recommendations')
-          .update({
-            implemented: true,
-            implementation_notes: notes,
-          })
-          .eq('id', id)
-          .eq('user_id', user.id)
-          .select()
-          .single();
-        
-        if (error) throw error;
-        data = updatedRec;
-      } catch (e) {
-        console.warn('Supabase recommendation implementation error, using fallback:', e);
-        // Fallback to localStorage
-        const mockRecommendations = JSON.parse(localStorage.getItem('mockRecommendations') || '[]');
-        const index = mockRecommendations.findIndex(rec => rec.id === id);
-        
-        if (index !== -1) {
-          mockRecommendations[index].implemented = true;
-          mockRecommendations[index].implementation_notes = notes || null;
-          mockRecommendations[index].updated_at = new Date().toISOString();
-          localStorage.setItem('mockRecommendations', JSON.stringify(mockRecommendations));
-          data = mockRecommendations[index];
-        } else {
-          throw new Error('Recommendation not found');
-        }
+      const currentUser = authService.getUser();
+      if (!currentUser) {
+        throw new Error('User not authenticated');
       }
+      
+      const token = localStorage.getItem('carbonledgerai_auth_token');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+      
+      // Call the backend API to implement recommendation
+      const response = await fetch(`${config.api.baseUrl || 'https://carbonledgerai-backend.onrender.com'}/api/ai/recommendations/${id}/implement`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ notes }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to implement recommendation');
+      }
+
+      const responseData = await response.json();
       
       notificationService.success(
         'Recommendation Implemented',
         'Great job on implementing this recommendation!'
       );
       
-      return this.formatRecommendation(data);
+      return responseData.recommendation;
     } catch (error) {
       notificationService.error('Update Failed', 'Failed to mark recommendation as implemented');
       throw error;
@@ -293,45 +196,34 @@ class AIServiceAPI {
 
   async dismissRecommendation(id: string): Promise<AIRecommendationAPI> {
     try {
-      let data;
-      
-      try {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('User not authenticated');
-        
-        // Update recommendation
-        const { data: updatedRec, error } = await supabase
-          .from('ai_recommendations')
-          .update({
-            dismissed: true,
-          })
-          .eq('id', id)
-          .eq('user_id', user.id)
-          .select()
-          .single();
-        
-        if (error) throw error;
-        data = updatedRec;
-      } catch (e) {
-        console.warn('Supabase recommendation dismissal error, using fallback:', e);
-        // Fallback to localStorage
-        const mockRecommendations = JSON.parse(localStorage.getItem('mockRecommendations') || '[]');
-        const index = mockRecommendations.findIndex(rec => rec.id === id);
-        
-        if (index !== -1) {
-          mockRecommendations[index].dismissed = true;
-          mockRecommendations[index].updated_at = new Date().toISOString();
-          localStorage.setItem('mockRecommendations', JSON.stringify(mockRecommendations));
-          data = mockRecommendations[index];
-        } else {
-          throw new Error('Recommendation not found');
-        }
+      const currentUser = authService.getUser();
+      if (!currentUser) {
+        throw new Error('User not authenticated');
       }
+      
+      const token = localStorage.getItem('carbonledgerai_auth_token');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+      
+      // Call the backend API to dismiss recommendation
+      const response = await fetch(`${config.api.baseUrl || 'https://carbonledgerai-backend.onrender.com'}/api/ai/recommendations/${id}/dismiss`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to dismiss recommendation');
+      }
+
+      const responseData = await response.json();
       
       notificationService.info('Recommendation Dismissed', 'Recommendation has been dismissed');
       
-      return this.formatRecommendation(data);
+      return responseData.recommendation;
     } catch (error) {
       notificationService.error('Update Failed', 'Failed to dismiss recommendation');
       throw error;

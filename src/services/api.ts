@@ -1,6 +1,7 @@
 import { config } from '../config/environment';
 import { AppError } from '../utils/errorHandler';
 import { notificationService } from './notificationService';
+import { authService } from './authService';
 
 class ApiService {
   private baseUrl: string;
@@ -9,22 +10,22 @@ class ApiService {
   private authToken: string | null = null;
 
   constructor() {
-    this.baseUrl = config.api.baseUrl;
+    this.baseUrl = config.api.baseUrl || 'https://carbonledgerai-backend.onrender.com';
     this.timeout = config.api.timeout;
     this.retryAttempts = config.api.retryAttempts;
     
     // Load auth token from localStorage
-    this.authToken = localStorage.getItem('carbonai_auth_token');
+    this.authToken = localStorage.getItem('carbonledgerai_auth_token');
   }
 
   setAuthToken(token: string) {
     this.authToken = token;
-    localStorage.setItem('carbonai_auth_token', token);
+    localStorage.setItem('carbonledgerai_auth_token', token);
   }
 
   clearAuthToken() {
     this.authToken = null;
-    localStorage.removeItem('carbonai_auth_token');
+    localStorage.removeItem('carbonledgerai_auth_token');
   }
 
   private getAuthHeaders(): Record<string, string> {
@@ -59,6 +60,7 @@ class ApiService {
         // Handle authentication errors
         if (response.status === 401) {
           this.clearAuthToken();
+          authService.logout();
           notificationService.error('Authentication Error', 'Please log in again');
           // Redirect to login page or trigger login modal
           window.location.href = '/login';

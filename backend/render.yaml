@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: carbonledgerai-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: carbonledgerai-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://carbonledgerai.netlify.app
+
+databases:
+  - name: carbonledgerai-db
+    plan: starter
+    ipAllowList: []
