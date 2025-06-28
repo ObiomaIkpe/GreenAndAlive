@@ -2,36 +2,24 @@
   "name": "carbonledgerai-backend",
   "version": "1.0.0",
   "description": "Backend API for CarbonledgerAI platform",
-  "main": "dist/main.js",
+  "main": "src/main.js",
   "scripts": {
-    "start": "node dist/main.js",
-    "dev": "nodemon src/index.js",
-    "build": "tsc",
-    "start:prod": "npm run build && node dist/main.js",
-    "postinstall": "npm run build",
+    "start": "node src/main.js",
+    "dev": "nodemon src/main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@nestjs/common": "^10.0.0",
-    "@nestjs/core": "^10.0.0",
-    "@nestjs/platform-express": "^10.0.0",
-    "@nestjs/cli": "^10.0.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.11.3",
-    "reflect-metadata": "^0.1.13",
-    "rxjs": "^7.8.1"
+    "pg": "^8.11.3"
   },
   "devDependencies": {
-    "@nestjs/cli": "^10.0.0",
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
     "nodemon": "^3.0.1"
   }
 }

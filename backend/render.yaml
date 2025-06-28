@@ -2,8 +2,8 @@ services:
   - type: web
     name: carbonledgerai-backend
     env: node
-    buildCommand: npm install && npm run build
-    startCommand: npm run start:prod
+    buildCommand: npm install
+    startCommand: npm start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
