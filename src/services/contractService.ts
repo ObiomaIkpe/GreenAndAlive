@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { environment } from '../config/environment';
+import { config } from '../config/environment';
 
 // Contract ABIs (simplified for demo - in production, import from compiled contracts)
 const CARBON_CREDIT_ABI = [
@@ -75,13 +75,13 @@ class ContractService {
 
       // Initialize contracts
       this.carbonCreditContract = new ethers.Contract(
-        environment.blockchain.contractAddress,
+        config.blockchain.contractAddress,
         CARBON_CREDIT_ABI,
         this.signer
       );
 
       this.carbonTokenContract = new ethers.Contract(
-        environment.blockchain.tokenAddress || environment.blockchain.contractAddress,
+        config.blockchain.tokenAddress || config.blockchain.contractAddress,
         CARBON_TOKEN_ABI,
         this.signer
       );
