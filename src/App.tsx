@@ -21,6 +21,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import NotificationContainer from './components/NotificationContainer';
 import { UserPortfolio } from './types';
 import { analyticsService } from './services/analytics';
+import BoltBadge from './components/BoltBadge';
 import { localStorageService } from './services/localStorage';
 import { config } from './config/environment';
 import Footer from './components/Footer';
@@ -153,6 +154,7 @@ function App() {
         </main>
         <Footer />
         <NotificationContainer />
+        <BoltBadge />
       </div>
     </ErrorBoundary>
   );
