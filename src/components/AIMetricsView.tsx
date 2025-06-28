@@ -184,7 +184,7 @@ export default function AIMetricsView() {
       </div>
 
       {activeTab === 'usage' && (
-        <>
+        <div>
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
@@ -507,6 +507,7 @@ export default function AIMetricsView() {
           </div>
         </div>
       </div>
-    </div> 
+    </div>
+        </div>
   );
 }
