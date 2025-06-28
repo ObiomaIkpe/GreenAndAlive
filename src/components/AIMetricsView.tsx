@@ -14,7 +14,7 @@ export default function AIMetricsView() {
   const [activeTab, setActiveTab] = useState<'usage' | 'cost' | 'models'>('usage');
 
   useEffect(() => {
-    loadMetrics();
+    loadMetrics(); 
   }, [timeframe]);
 
   const loadMetrics = async () => {
@@ -23,8 +23,9 @@ export default function AIMetricsView() {
       const [usageData, costData, comparisons, performance] = await Promise.all([
         aiMetricsService.getUserMetrics(timeframe),
         aiMetricsService.getUserCostMetrics(timeframe),
-        aiMetricsService.getModelComparisons(),
-        aiMetricsService.getModelPerformance()
+        aiMetricsService.getModelComparisons(), 
+        aiMetricsService.getModelPerformance(),
+        aiMetricsService.getCostOptimizationSuggestions()
       ]);
       
       setMetrics(usageData);
@@ -111,12 +112,12 @@ export default function AIMetricsView() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center space-x-3">
-            <div className="bg-indigo-100 p-2 rounded-lg">
-              <BarChart3 className="w-6 h-6 text-indigo-600" />
+            <div className="bg-indigo-100 p-2 rounded-lg"> 
+              <img src="/bolt-icon.svg" alt="Bolt" className="w-6 h-6" />
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">AI Usage Metrics</h2>
-              <p className="text-sm text-gray-600">Track and optimize your AI service usage</p>
+              <p className="text-sm text-gray-600">Track and optimize your OpenAI API usage</p>
             </div>
           </div>
           
@@ -315,7 +316,7 @@ export default function AIMetricsView() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                      <span className="text-sm text-gray-700">Successful API Calls</span>
+                      <span className="text-sm text-gray-700">Successful OpenAI API Calls</span>
                     </div>
                     <span className="text-sm font-medium text-gray-900">
                       {metrics.metrics.filter(m => m.success && !m.fallback_used).length}
@@ -326,7 +327,7 @@ export default function AIMetricsView() {
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                       <span className="text-sm text-gray-700">Fallback Used</span>
-                    </div>
+                    </div> 
                     <span className="text-sm font-medium text-gray-900">
                       {metrics.metrics.filter(m => m.fallback_used).length}
                     </span>
@@ -336,7 +337,7 @@ export default function AIMetricsView() {
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                       <span className="text-sm text-gray-700">Failed Requests</span>
-                    </div>
+                    </div> 
                     <span className="text-sm font-medium text-gray-900">
                       {metrics.metrics.filter(m => !m.success).length}
                     </span>
@@ -465,8 +466,8 @@ export default function AIMetricsView() {
                 <h4 className="font-medium text-blue-900 mb-2">Cost Optimization</h4>
                 <ul className="text-sm text-blue-800 space-y-2">
                   <li className="flex items-start">
-                    <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
-                    <span>Use smaller models for simpler tasks (gpt-3.5-turbo vs gpt-4)</span>
+                    <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" /> 
+                    <span>Use gpt-3.5-turbo for simpler tasks (saves ~10x cost vs gpt-4)</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
@@ -474,7 +475,7 @@ export default function AIMetricsView() {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
-                    <span>Reduce token usage with more concise prompts</span>
+                    <span>Reduce token usage with more concise, focused prompts</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
@@ -487,7 +488,7 @@ export default function AIMetricsView() {
                 <h4 className="font-medium text-green-900 mb-2">Performance Optimization</h4>
                 <ul className="text-sm text-green-800 space-y-2">
                   <li className="flex items-start">
-                    <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 mr-2 flex-shrink-0" />
+                    <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 mr-2 flex-shrink-0" /> 
                     <span>Implement request throttling to avoid rate limits</span>
                   </li>
                   <li className="flex items-start">
@@ -496,7 +497,7 @@ export default function AIMetricsView() {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 mr-2 flex-shrink-0" />
-                    <span>Implement robust fallback mechanisms</span>
+                    <span>Use robust fallback mechanisms for API outages</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 mr-2 flex-shrink-0" />
