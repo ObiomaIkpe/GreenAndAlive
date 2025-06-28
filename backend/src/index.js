@@ -13,7 +13,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // Database connection
@@ -29,7 +33,7 @@ pool.query('SELECT NOW()', (err, res) => {
   if (err) {
     console.error('Database connection error:', err);
   } else {
-    console.log('Database connected successfully');
+    console.log('Database connected successfully at:', res.rows[0].now);
   }
 });
 
@@ -51,13 +55,17 @@ const authenticateToken = (req, res, next) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', message: 'Server is running' });
+  res.status(200).json({ status: 'ok', message: 'Server is running', timestamp: new Date() });
 });
 
 // User registration
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, firstName, lastName, walletAddress } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
     
     // Check if user already exists
     const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
@@ -71,7 +79,7 @@ app.post('/api/auth/register', async (req, res) => {
     
     // Create user
     const newUser = await pool.query(
-      'INSERT INTO users (email, password, first_name, last_name, wallet_address, total_credits, total_value, monthly_offset, reduction_goal, token_balance, staking_rewards, reputation_score, achievements, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW()) RETURNING id, email, first_name, last_name, wallet_address',
+      'INSERT INTO users (id, email, password, first_name, last_name, wallet_address, total_credits, total_value, monthly_offset, reduction_goal, token_balance, staking_rewards, reputation_score, achievements, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW()) RETURNING id, email, first_name, last_name, wallet_address',
       [email, hashedPassword, firstName, lastName, walletAddress, 0, 0, 0, 24, 0, 0, 50, []]
     );
     
@@ -95,7 +103,24 @@ app.post('/api/auth/register', async (req, res) => {
         email: newUser.rows[0].email,
         firstName: newUser.rows[0].first_name,
         lastName: newUser.rows[0].last_name,
-        walletAddress: newUser.rows[0].wallet_address
+        walletAddress: newUser.rows[0].wallet_address,
+        totalCredits: 0,
+        totalValue: 0,
+        monthlyOffset: 0,
+        reductionGoal: 24,
+        tokenBalance: 0,
+        stakingRewards: 0,
+        reputationScore: 50,
+        achievements: [],
+        preferences: {
+          location: 'San Francisco, CA',
+          lifestyle: ['urban', 'tech_worker'],
+          budget: 500,
+          notifications: true,
+          theme: 'light',
+          preferences: ['renewable_energy', 'forest_conservation'],
+          riskTolerance: 'medium'
+        }
       },
       token
     });
@@ -109,6 +134,10 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
     
     // Find user
     const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
@@ -154,7 +183,7 @@ app.post('/api/auth/login', async (req, res) => {
         tokenBalance: user.token_balance,
         stakingRewards: user.staking_rewards,
         reputationScore: user.reputation_score,
-        achievements: user.achievements,
+        achievements: user.achievements || [],
         preferences: preferences ? {
           location: preferences.location,
           lifestyle: preferences.lifestyle,
@@ -212,7 +241,7 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
         tokenBalance: user.token_balance,
         stakingRewards: user.staking_rewards,
         reputationScore: user.reputation_score,
-        achievements: user.achievements,
+        achievements: user.achievements || [],
         preferences: preferences ? {
           location: preferences.location,
           lifestyle: preferences.lifestyle,
@@ -325,7 +354,7 @@ app.post('/api/carbon/footprint', authenticateToken, async (req, res) => {
     
     // Save calculation
     const result = await pool.query(
-      'INSERT INTO carbon_footprints (user_id, electricity, transportation, heating, air_travel, total_emissions, calculation_date, notes, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE, $7, NOW(), NOW()) RETURNING *',
+      'INSERT INTO carbon_footprints (id, user_id, electricity, transportation, heating, air_travel, total_emissions, calculation_date, notes, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, CURRENT_DATE, $7, NOW(), NOW()) RETURNING *',
       [userId, electricity, transportation, heating, airTravel, totalEmissions, notes]
     );
     
@@ -341,7 +370,8 @@ app.post('/api/carbon/footprint', authenticateToken, async (req, res) => {
         totalEmissions: result.rows[0].total_emissions,
         calculationDate: result.rows[0].calculation_date,
         notes: result.rows[0].notes,
-        createdAt: result.rows[0].created_at
+        createdAt: result.rows[0].created_at,
+        updatedAt: result.rows[0].updated_at
       }
     });
   } catch (error) {
@@ -429,7 +459,7 @@ app.post('/api/ai/recommendations', authenticateToken, async (req, res) => {
     const savedRecommendations = [];
     for (const rec of recommendations) {
       const result = await pool.query(
-        'INSERT INTO ai_recommendations (user_id, type, title, description, impact, confidence, category, reward_potential, action_steps, estimated_cost, timeframe, priority, implemented, dismissed, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW()) RETURNING *',
+        'INSERT INTO ai_recommendations (id, user_id, type, title, description, impact, confidence, category, reward_potential, action_steps, estimated_cost, timeframe, priority, implemented, dismissed, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW()) RETURNING *',
         [userId, rec.type, rec.title, rec.description, rec.impact, rec.confidence, rec.category, rec.rewardPotential, rec.actionSteps, rec.estimatedCost, rec.timeframe, rec.priority, false, false]
       );
       
@@ -455,7 +485,7 @@ app.post('/api/ai/recommendations', authenticateToken, async (req, res) => {
     
     // Track AI usage
     await pool.query(
-      'INSERT INTO ai_usage_metrics (user_id, model, request_type, tokens_used, response_time, success, fallback_used, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())',
+      'INSERT INTO ai_usage_metrics (id, user_id, model, request_type, tokens_used, response_time, success, fallback_used, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW())',
       [userId, 'gpt-3.5-turbo', 'recommendations', 850, 1200, true, false]
     );
     
@@ -761,6 +791,24 @@ function generateMockRecommendations(carbonFootprint, budget = 500) {
       estimatedCost: budget,
       timeframe: '1 week',
       priority: 'high'
+    },
+    {
+      type: 'optimization',
+      title: 'Smart Home Automation',
+      description: 'Use technology to automatically optimize your energy consumption',
+      impact: 2.8,
+      confidence: 75,
+      category: 'Technology',
+      rewardPotential: 28,
+      actionSteps: [
+        'Install smart power strips to eliminate phantom loads',
+        'Use smart thermostats with learning capabilities',
+        'Set up automated lighting schedules',
+        'Monitor energy usage with smart meters'
+      ],
+      estimatedCost: 400,
+      timeframe: '3-4 weeks',
+      priority: 'medium'
     }
   ];
 }
@@ -768,4 +816,6 @@ function generateMockRecommendations(carbonFootprint, budget = 500) {
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
+  console.log(`CORS Origin: ${process.env.CORS_ORIGIN}`);
 });

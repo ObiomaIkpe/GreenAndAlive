@@ -9,15 +9,12 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        fromDatabase:
-          name: carbonledgerai-db
-          property: connectionString
+        value: postgresql://neondb_owner:npg_cCQidTB07kpV@ep-wild-salad-ab87glrm-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
       - key: JWT_SECRET
-        generateValue: true
+        value: EDIJDIOMDSDSKSKsddkssdkld456789
       - key: CORS_ORIGIN
-        value: https://carbonledgerai.netlify.app
-
-databases:
-  - name: carbonledgerai-db
-    plan: starter
-    ipAllowList: []
+        value: https://glittering-sunshine-6d05d2.netlify.app
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+      - key: RATE_LIMIT_MAX
+        value: 100

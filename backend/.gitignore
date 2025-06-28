@@ -9,6 +9,7 @@ lerna-debug.log*
 
 # Dependency directories
 node_modules/
+jspm_packages/
 
 # dotenv environment variable files
 .env
@@ -21,6 +22,19 @@ node_modules/
 dist/
 build/
 
-# OS specific files
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Temporary files
+tmp/
+temp/
+
+# IDE files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
 .DS_Store
 Thumbs.db
