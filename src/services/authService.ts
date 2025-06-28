@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { notificationService } from './notificationService';
 import { localStorageService } from './localStorage';
+import { aiMetricsService } from './aiMetricsService';
 
 export interface LoginCredentials {
   email: string;
@@ -87,9 +88,14 @@ class AuthService {
         // Format user data to match our interface
         this.currentUser = this.formatUserData(profileData);
       } catch (e) {
-        console.warn('Supabase profile fetch error, using fallback:', e);
+        console.warn('Supabase profile fetch error, using mock data:', e);
         // Fallback to mock data
         this.currentUser = this.getMockUser();
+      }
+
+      // Sync any locally stored AI metrics to the database
+      if (userData?.user?.id) {
+        aiMetricsService.syncLocalMetrics(userData.user.id);
       }
 
       notificationService.success('Login Successful', `Welcome back, ${this.currentUser.firstName || this.currentUser.email}!`);
@@ -112,7 +118,9 @@ class AuthService {
       if (authError) throw authError;
 
       // Create user profile
-      const { data: userData, error: userError } = await supabase
+      let userData;
+      try {
+        const { data, error: userError } = await supabase
         .from('users')
         .insert({
           id: authData.user?.id,
@@ -131,11 +139,32 @@ class AuthService {
         })
         .select()
         .single();
-
-      if (userError) throw userError;
+        
+        if (userError) throw userError;
+        userData = data;
+      } catch (e) {
+        console.warn('Failed to create user profile, using mock data:', e);
+        userData = {
+          id: authData.user?.id,
+          email: data.email,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          wallet_address: data.walletAddress,
+          total_credits: 0,
+          total_value: 0,
+          monthly_offset: 0,
+          reduction_goal: 24,
+          token_balance: 0,
+          staking_rewards: 0,
+          reputation_score: 50,
+          achievements: [],
+        };
+      }
 
       // Create user preferences
-      const { data: preferencesData, error: preferencesError } = await supabase
+      let preferencesData;
+      try {
+        const { data, error: preferencesError } = await supabase
         .from('user_preferences')
         .insert({
           user_id: authData.user?.id,
@@ -149,8 +178,22 @@ class AuthService {
         })
         .select()
         .single();
-
-      if (preferencesError) throw preferencesError;
+        
+        if (preferencesError) throw preferencesError;
+        preferencesData = data;
+      } catch (e) {
+        console.warn('Failed to create user preferences, using mock data:', e);
+        preferencesData = {
+          user_id: authData.user?.id,
+          location: 'San Francisco, CA',
+          lifestyle: ['urban', 'tech_worker'],
+          budget: 500,
+          notifications: true,
+          theme: 'light',
+          preferences: ['renewable_energy', 'forest_conservation'],
+          risk_tolerance: 'medium',
+        };
+      }
 
       // Format user data
       this.currentUser = {
@@ -178,7 +221,7 @@ class AuthService {
         },
       };
       
-      notificationService.success('Registration Successful', 'Welcome to CarbonAI!');
+      notificationService.success('Registration Successful', 'Welcome to CarbonledgerAI!');
       notificationService.success('Registration Successful', 'Welcome to CarbonledgerAI!');
       
       return this.currentUser;

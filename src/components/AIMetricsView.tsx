@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, PieChart, Clock, Brain, AlertTriangle, CheckCircle, XCircle, Download } from 'lucide-react';
+import { BarChart3, PieChart, Clock, Brain, AlertTriangle, CheckCircle, XCircle, Download, DollarSign, TrendingUp, BarChart, Scale } from 'lucide-react';
 import { aiMetricsService } from '../services/aiMetricsService';
 import LoadingSpinner from './LoadingSpinner';
 
 export default function AIMetricsView() {
   const [timeframe, setTimeframe] = useState<30 | 60 | 90>(30);
   const [metrics, setMetrics] = useState<any>(null);
+  const [costMetrics, setCostMetrics] = useState<any>(null);
+  const [modelComparisons, setModelComparisons] = useState<any[]>([]);
+  const [modelPerformance, setModelPerformance] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'usage' | 'cost' | 'models'>('usage');
 
   useEffect(() => {
     loadMetrics();
@@ -16,8 +20,17 @@ export default function AIMetricsView() {
   const loadMetrics = async () => {
     setLoading(true);
     try {
-      const data = await aiMetricsService.getUserMetrics(timeframe);
-      setMetrics(data);
+      const [usageData, costData, comparisons, performance] = await Promise.all([
+        aiMetricsService.getUserMetrics(timeframe),
+        aiMetricsService.getUserCostMetrics(timeframe),
+        aiMetricsService.getModelComparisons(),
+        aiMetricsService.getModelPerformance()
+      ]);
+      
+      setMetrics(usageData);
+      setCostMetrics(costData);
+      setModelComparisons(comparisons);
+      setModelPerformance(performance);
       setError(null);
     } catch (err) {
       setError('Failed to load AI usage metrics');
@@ -28,9 +41,16 @@ export default function AIMetricsView() {
   };
 
   const exportMetrics = () => {
-    if (!metrics) return;
+    if (!metrics && !costMetrics) return;
     
-    const dataStr = JSON.stringify(metrics, null, 2);
+    const exportData = {
+      usage: metrics,
+      cost: costMetrics,
+      timeframe,
+      exportDate: new Date().toISOString()
+    };
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
     
     const exportFileDefaultName = `ai-metrics-${new Date().toISOString().split('T')[0]}.json`;
@@ -70,7 +90,8 @@ export default function AIMetricsView() {
     );
   }
 
-  if (!metrics || !metrics.metrics || metrics.metrics.length === 0) {
+  if ((!metrics || !metrics.metrics || metrics.metrics.length === 0) && 
+      (!costMetrics || !costMetrics.costs || costMetrics.costs.length === 0)) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <div className="text-center py-8">
@@ -99,7 +120,7 @@ export default function AIMetricsView() {
             </div>
           </div>
           
-          <div className="flex space-x-3">
+          <div className="flex items-center space-x-3">
             <select
               value={timeframe}
               onChange={(e) => setTimeframe(Number(e.target.value) as 30 | 60 | 90)}
@@ -121,6 +142,49 @@ export default function AIMetricsView() {
         </div>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="flex border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('usage')}
+            className={`flex items-center space-x-2 px-6 py-4 font-medium text-sm border-b-2 transition-colors duration-200 ${
+              activeTab === 'usage'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Usage Metrics</span>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('cost')}
+            className={`flex items-center space-x-2 px-6 py-4 font-medium text-sm border-b-2 transition-colors duration-200 ${
+              activeTab === 'cost'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <DollarSign className="w-4 h-4" />
+            <span>Cost Analysis</span>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('models')}
+            className={`flex items-center space-x-2 px-6 py-4 font-medium text-sm border-b-2 transition-colors duration-200 ${
+              activeTab === 'models'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Scale className="w-4 h-4" />
+            <span>Model Comparison</span>
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'usage' && (
+        <>
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
@@ -443,6 +507,6 @@ export default function AIMetricsView() {
           </div>
         </div>
       </div>
-    </div>
+    </div> 
   );
 }
