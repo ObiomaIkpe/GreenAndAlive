@@ -1,4 +1,5 @@
 import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Leaf, TrendingUp, Award, AlertCircle } from 'lucide-react';
 import { UserPortfolio } from '../types';
 import { testBackendConnection } from '../services/authService';
@@ -25,7 +26,16 @@ export default function Dashboard({ portfolio }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3">
+          <a 
+            href="https://bolt.new" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center space-x-2 px-3 py-1 bg-gray-800 text-white text-sm rounded-md hover:bg-gray-700 transition-colors duration-200"
+          >
+            <img src="/bolt-icon.svg" alt="Bolt" className="w-4 h-4" />
+            <span>Built with Bolt.new</span>
+          </a>
           {/* Backend Status Indicator */}
           <div className="flex items-center space-x-2">
             <div className={`w-3 h-3 rounded-full ${

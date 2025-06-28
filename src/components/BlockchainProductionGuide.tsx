@@ -429,17 +429,26 @@ export default function BlockchainProductionGuide() {
       {/* Next Steps */}
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Ready for Production?</h3>
-        <p className="text-gray-700 mb-4">
+        <p className="text-gray-700 mb-6">
           Once you've completed all steps and thoroughly tested the system, you'll have a production-ready 
           blockchain integration that automatically rewards users with crypto tokens for verified eco-friendly activities.
         </p>
-        <div className="flex space-x-4">
+        <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
           <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200">
             Schedule Security Audit
           </button>
           <button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200">
             Deploy to Mainnet
           </button>
+          <a 
+            href="https://bolt.new" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center justify-center space-x-2 px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200"
+          >
+            <img src="/bolt-icon.svg" alt="Bolt Icon" className="w-5 h-5" />
+            <span>Built with Bolt.new</span>
+          </a>
         </div>
       </div>
     </div>

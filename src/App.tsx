@@ -23,6 +23,7 @@ import { UserPortfolio } from './types';
 import { analyticsService } from './services/analytics';
 import { localStorageService } from './services/localStorage';
 import { config } from './config/environment';
+import Footer from './components/Footer';
 
 function App() {
   const [activeTab, setActiveTab] = useState('production-guide');
@@ -150,6 +151,7 @@ function App() {
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
           {renderContent()}
         </main>
+        <Footer />
         <NotificationContainer />
       </div>
     </ErrorBoundary>
