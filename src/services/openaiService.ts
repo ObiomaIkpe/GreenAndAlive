@@ -49,7 +49,7 @@ class OpenAIService {
   }
 
   public isConfigured(): boolean {
-    return !!this.apiKey && this.apiKey.startsWith('sk-');
+    return !!this.apiKey && (this.apiKey.startsWith('sk-') || this.apiKey.startsWith('sk-proj-'));
   }
 
   public getConfiguration(): {
@@ -98,7 +98,7 @@ class OpenAIService {
       const response = await this.makeRequest([
         {
           role: 'user',
-          content: 'Hello! This is a test message. Please respond with "Connection successful!"'
+          content: 'Hello! This is a test message to verify the OpenAI API connection. Please respond with "Connection successful!"'
         }
       ], {
         max_tokens: 50,
@@ -404,9 +404,9 @@ class OpenAIService {
   private formatApiError(status: number, errorData: OpenAIError): string {
     const baseMessage = errorData.error?.message || 'Unknown API error';
     
-    switch (status) {
+    switch (status) { 
       case 401:
-        return 'Invalid API key. Please check your VITE_OPENAI_API_KEY in the .env file.';
+        return 'Authentication failed. Please check your VITE_OPENAI_API_KEY in the .env file and verify it has the correct permissions.';
       case 429:
         return 'API rate limit exceeded. Please wait a moment and try again. Consider upgrading your OpenAI plan for higher rate limits.';
       case 403:
@@ -414,7 +414,7 @@ class OpenAIService {
       case 404:
         if (baseMessage.includes('model')) {
           return `The AI model "${this.model}" is not available with your API key. Try using "gpt-3.5-turbo" instead.`;
-        }
+        } 
         return baseMessage;
       case 500:
       case 502:
@@ -428,7 +428,7 @@ class OpenAIService {
   private getErrorMessage(error: any): string {
     if (error instanceof Error) {
       return error.message;
-    }
+    } 
     if (typeof error === 'string') {
       return error;
     }
@@ -440,7 +440,7 @@ class OpenAIService {
     // Extract the user's query
     const userMessage = messages.find(m => m.role === 'user')?.content || '';
     
-    // Generate a mock response based on the query type
+    // Generate a mock response based on the query type 
     let responseContent = '';
     
     if (userMessage.includes('recommendation')) {
@@ -461,7 +461,7 @@ class OpenAIService {
           "timeframe": "2-4 weeks",
           "priority": "medium"
         }
-      ]);
+      ]); 
     } else if (userMessage.includes('predict')) {
       responseContent = JSON.stringify({
         "predictedEmissions": 25.5,
@@ -473,7 +473,7 @@ class OpenAIService {
     } else if (userMessage.includes('behavior')) {
       responseContent = JSON.stringify({
         "insights": [
-          "Your carbon tracking shows consistent engagement with sustainability",
+          "Your carbon tracking shows consistent engagement with sustainability", 
           "Transportation appears to be your largest emission source",
           "Energy usage patterns suggest room for optimization"
         ],
@@ -489,8 +489,10 @@ class OpenAIService {
           "Create monthly carbon reduction challenges"
         ]
       });
-    } else {
+    } else if (userMessage.includes('test message')) {
       responseContent = "Connection successful!";
+    } else {
+      responseContent = "I'm here to help with your carbon management needs.";
     }
     
     return {

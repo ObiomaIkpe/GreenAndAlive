@@ -53,7 +53,7 @@ class AIService {
   constructor() {
     this.apiKey = config.ai.apiKey || '';
     this.baseUrl = config.ai.baseUrl || 'https://api.openai.com/v1';
-    this.model = config.ai.model || 'gpt-3.5-turbo';
+    this.model = config.ai.model || 'gpt-4';
     
     // Validate API key format
     if (!this.apiKey) {
@@ -61,8 +61,11 @@ class AIService {
       this.lastErrorMessage = 'OpenAI API key not configured';
       this.fallbackMode = true;
     } else if (this.apiKey.startsWith('sk-')) {
+      console.log('OpenAI API key format appears valid, length:', this.apiKey.length);
       this.apiKeyValid = true;
-      console.log('OpenAI API key format appears valid');
+    } else if (this.apiKey.startsWith('sk-proj-')) {
+      console.log('OpenAI API key format appears to be a project key, length:', this.apiKey.length);
+      this.apiKeyValid = true;
     } else {
       console.warn('OpenAI API key has invalid format, enabling fallback mode');
       this.lastErrorMessage = 'Invalid OpenAI API key format';
@@ -401,10 +404,10 @@ class AIService {
     if (!this.apiKey) {
       this.fallbackMode = true;
       this.lastErrorMessage = 'OpenAI API key not configured';
-      throw new AppError('OpenAI API key not configured', 500);
+      throw new AppError('OpenAI API key not configured in environment variables', 500);
     }
 
-    if (!this.apiKey.startsWith('sk-')) {
+    if (!this.apiKey.startsWith('sk-') && !this.apiKey.startsWith('sk-proj-')) {
       this.fallbackMode = true;
       this.lastErrorMessage = 'Invalid OpenAI API key format';
       throw new AppError('Invalid OpenAI API key format', 500);
@@ -415,7 +418,7 @@ class AIService {
       console.log(`Making API request to ${this.baseUrl}/chat/completions with model ${options.model}`);
       
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
+        method: 'POST', 
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
@@ -433,7 +436,6 @@ class AIService {
       if (!response.ok) {
         let errorMessage = `AI API error (${response.status}): ${response.statusText}`;
         let errorDetails = {};
-        let responseData;
         
         try {
           const errorData = await response.json();
@@ -450,7 +452,7 @@ class AIService {
         if (response.status === 401) {
           this.fallbackMode = true;
           this.lastErrorMessage = 'Invalid API key';
-          errorMessage = 'Invalid API key. Please check your VITE_OPENAI_API_KEY in the .env file.';
+          errorMessage = 'Invalid API key or authentication failed. Please check your VITE_OPENAI_API_KEY in the .env file.';
         } else if (response.status === 429) {
           this.fallbackMode = true;
           this.lastErrorMessage = 'Rate limit exceeded';
@@ -458,7 +460,7 @@ class AIService {
         } else if (response.status === 403) {
           this.fallbackMode = true;
           this.lastErrorMessage = 'API access forbidden';
-          errorMessage = 'OpenAI API access forbidden. Please check your API key permissions and billing status.';
+          errorMessage = 'OpenAI API access forbidden. Please check your API key permissions, billing status, or organization settings.';
         } else if (response.status === 404 && errorMessage.includes('model')) {
           this.fallbackMode = true;
           this.lastErrorMessage = `Model ${this.model} not available`;
@@ -554,20 +556,21 @@ class AIService {
 
   // Check if API key is valid
   public isApiKeyValid(): boolean {
-    return this.apiKeyValid;
+    return this.apiKeyValid && !this.fallbackMode;
   }
 
   // For debugging - get API key status
   public getApiKeyStatus(): string {
     if (!this.apiKey) return 'Missing';
-    if (!this.apiKeyValid) return 'Invalid format';
+    if (!this.apiKeyValid) return 'Invalid format'; 
+    if (this.apiKey.startsWith('sk-proj-')) return this.fallbackMode ? 'Project key configured but service unavailable' : 'Project key valid and working';
     if (this.fallbackMode) return 'Valid but service unavailable';
     return 'Valid and working';
   }
 
   private buildRecommendationPrompt(userProfile: any): string {
     return `
-      Generate personalized carbon reduction recommendations for this user:
+      Generate personalized carbon reduction recommendations for this user profile:
       Current carbon footprint: ${userProfile.carbonFootprint} tons CO2/year
       Location: ${userProfile.location}
       Lifestyle factors: ${userProfile.lifestyle.join(', ')}
@@ -576,7 +579,9 @@ class AIService {
       
       Provide 3-5 specific, actionable recommendations with impact estimates.
       Include both behavioral changes and carbon credit purchase options.
-      Format as JSON array with: id, type, title, description, impact, confidence, category, actionSteps, estimatedCost, timeframe, priority.
+      Format as JSON array with these exact fields: id, type, title, description, impact, confidence, category, actionSteps, estimatedCost, timeframe, priority.
+      
+      Make sure each recommendation is specific to the user's location, lifestyle, and preferences.
     `;
   }
 

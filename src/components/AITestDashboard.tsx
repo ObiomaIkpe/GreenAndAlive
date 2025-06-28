@@ -22,9 +22,11 @@ export default function AITestDashboard() {
   useEffect(() => {
     // Mask the API key for display
     if (config.ai.apiKey) {
-      const key = config.ai.apiKey;
-      if (key.startsWith('sk-')) {
-        setApiKeyMasked(`sk-...${key.slice(-4)}`);
+      const key = config.ai.apiKey; 
+      if (key.startsWith('sk-proj-')) {
+        setApiKeyMasked(`sk-proj-...${key.slice(-4)}`);
+      } else if (key.startsWith('sk-')) {
+        setApiKeyMasked(`sk-...${key.slice(-4)}`); 
       } else {
         setApiKeyMasked('Invalid format');
       }
@@ -57,10 +59,10 @@ export default function AITestDashboard() {
     
     const apiKey = config.ai.apiKey;
     
-    if (!apiKey) {
+    if (!apiKey) { 
       updateTest('Configuration', 'error', 'OpenAI API key not found in environment variables');
       setFallbackMode(true);
-    } else if (apiKey.startsWith('sk-') && apiKey.length > 20) {
+    } else if ((apiKey.startsWith('sk-') || apiKey.startsWith('sk-proj-')) && apiKey.length > 20) {
       updateTest('Configuration', 'success', `API key format appears valid (${apiKeyMasked})`);
     } else {
       updateTest('Configuration', 'error', `API key format appears invalid (${apiKey.substring(0, 5)}...)`);
@@ -74,7 +76,7 @@ export default function AITestDashboard() {
     updateTest('API Connection', 'pending', 'Testing connection to OpenAI API...');
     const connectionStartTime = Date.now();
 
-    try {
+    try { 
       const connectionResult = await openaiService.testConnection();
       const duration = Date.now() - connectionStartTime;
       
@@ -101,7 +103,7 @@ export default function AITestDashboard() {
     updateTest('AI Recommendations', 'pending', 'Testing recommendation generation...');
     const startTime = Date.now();
 
-    try {
+    try { 
       // Use the API service that's used in the actual application
       const recommendations = await aiServiceAPI.generateRecommendations({
         carbonFootprint: 25.5,
@@ -115,7 +117,7 @@ export default function AITestDashboard() {
       
       if (recommendations?.length > 0) {
         updateTest('AI Recommendations', 'success',
-          `Generated ${recommendations.length} recommendations successfully${aiService.isInFallbackMode() ? ' (using fallback)' : ''}`, duration);
+          `Generated ${recommendations.length} recommendations successfully${aiService.isInFallbackMode() ? ' (using fallback)' : ''} in ${duration}ms`, duration);
         setFallbackMode(aiService.isInFallbackMode());
       } else {
         updateTest('AI Recommendations', 'error', 'No recommendations returned');
@@ -155,9 +157,9 @@ export default function AITestDashboard() {
         const duration = Date.now() - predictionStartTime;
         
         if (prediction && prediction.predictedEmissions) {
-          const fallbackNote = aiService.isInFallbackMode() ? ' (using fallback)' : '';
+          const fallbackNote = aiService.isInFallbackMode() ? ' (using fallback)' : ''; 
           updateTest('Carbon Predictions', 'success', 
-            `Predicted ${prediction.predictedEmissions.toFixed(1)} tons CO₂${fallbackNote}`, duration);
+            `Predicted ${prediction.predictedEmissions.toFixed(1)} tons CO₂${fallbackNote} in ${duration}ms`, duration);
           setFallbackMode(aiService.isInFallbackMode());
         } else {
           updateTest('Carbon Predictions', 'error', 'Invalid prediction response');
@@ -188,16 +190,16 @@ export default function AITestDashboard() {
     
     const apiKey = config.ai.apiKey;
     
-    // Reset fallback mode to give the API another chance
-    if (apiKey && apiKey.startsWith('sk-')) {
+    // Reset fallback mode to give the API another chance 
+    if (apiKey && (apiKey.startsWith('sk-') || apiKey.startsWith('sk-proj-'))) {
       aiService.resetFallbackMode();
       setFallbackMode(false);
     }
     
     if (!apiKey) {
       updateTest('Quick Configuration Test', 'error', 'OpenAI API key not found');
-      setFallbackMode(true);
-    } else if (!apiKey.startsWith('sk-')) {
+      setFallbackMode(true); 
+    } else if (!apiKey.startsWith('sk-') && !apiKey.startsWith('sk-proj-')) {
       updateTest('Quick Configuration Test', 'error', 'Invalid API key format');
       setFallbackMode(true);
     } else {
@@ -368,7 +370,7 @@ export default function AITestDashboard() {
               <p className="text-xs text-gray-500">
                 {config.ai.apiKey ? apiKeyMasked : 'Missing'}
               </p>
-              {(!config.ai.apiKey || !config.ai.apiKey.startsWith('sk-')) && (
+              {(!config.ai.apiKey || (!config.ai.apiKey.startsWith('sk-') && !config.ai.apiKey.startsWith('sk-proj-'))) && (
                 <button 
                   onClick={fixApiKey}
                   className="text-xs text-blue-600 hover:text-blue-800"
@@ -438,7 +440,7 @@ export default function AITestDashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     {getStatusIcon(test.status)}
-                    <div>
+                    (config.ai.apiKey.startsWith('sk-') || config.ai.apiKey.startsWith('sk-proj-')) ? (
                       <h4 className="font-medium text-gray-900">{test.name}</h4>
                       <p className="text-sm text-gray-600">{test.message}</p>
                     </div>
