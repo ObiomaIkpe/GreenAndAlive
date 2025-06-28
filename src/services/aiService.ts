@@ -1,6 +1,7 @@
 import { config } from '../config/environment';
 import { apiService } from './api';
 import { AppError } from '../utils/errorHandler';
+import { notificationService } from './notificationService';
 
 export interface AIRecommendation {
   id: string;
@@ -43,12 +44,19 @@ class AIService {
   private lastRequestTime: number = 0;
   private minRequestInterval: number = 1000; // 1 second between requests
   private requestQueue: Array<() => Promise<any>> = [];
-  private isProcessingQueue: boolean = false;
+  private isProcessingQueue: boolean = false; 
+  private fallbackMode: boolean = false;
 
   constructor() {
     this.apiKey = config.ai.apiKey || '';
     this.baseUrl = config.ai.baseUrl || 'https://api.openai.com/v1';
     this.model = config.ai.model || 'gpt-3.5-turbo';
+    
+    // Check if API key is configured
+    if (!this.apiKey || this.apiKey.length < 10) {
+      console.warn('OpenAI API key not properly configured, enabling fallback mode');
+      this.fallbackMode = true;
+    }
   }
 
   // Rate limiting wrapper for AI calls
@@ -108,7 +116,7 @@ class AIService {
     return this.queueRequest(async () => {
       try {
         if (!this.apiKey) {
-          console.warn('OpenAI API key not configured, using fallback recommendations');
+          console.warn('OpenAI API key not configured, using fallback recommendations for user profile:', userProfile);
           return this.getFallbackRecommendations(userProfile);
         }
 
@@ -133,6 +141,12 @@ class AIService {
         return this.parseRecommendations(response.choices[0].message.content, userProfile);
       } catch (error) {
         console.error('AI recommendation generation failed:', error);
+        // Enable fallback mode for future requests
+        this.fallbackMode = true;
+        notificationService.warning(
+          'Using Fallback Recommendations',
+          'AI service is currently unavailable. Using pre-generated recommendations instead.'
+        );
         return this.getFallbackRecommendations(userProfile);
       }
     });
@@ -146,7 +160,7 @@ class AIService {
   }): Promise<CarbonPrediction> {
     return this.queueRequest(async () => {
       try {
-        if (!this.apiKey) {
+        if (this.fallbackMode || !this.apiKey) {
           console.warn('OpenAI API key not configured, using fallback prediction');
           return this.getFallbackPrediction(historicalData);
         }
@@ -180,6 +194,7 @@ class AIService {
         return this.parsePrediction(response.choices[0].message.content);
       } catch (error) {
         console.error('Carbon prediction failed:', error);
+        this.fallbackMode = true;
         return this.getFallbackPrediction(historicalData);
       }
     });
@@ -194,7 +209,7 @@ class AIService {
   }): Promise<AIInsights> {
     return this.queueRequest(async () => {
       try {
-        if (!this.apiKey) {
+        if (this.fallbackMode || !this.apiKey) {
           console.warn('OpenAI API key not configured, using fallback insights');
           return this.getFallbackInsights(userData);
         }
@@ -229,6 +244,7 @@ class AIService {
         return this.parseInsights(response.choices[0].message.content);
       } catch (error) {
         console.error('Efficiency analysis failed:', error);
+        this.fallbackMode = true;
         return this.getFallbackInsights(userData);
       }
     });
@@ -248,7 +264,7 @@ class AIService {
   }> {
     return this.queueRequest(async () => {
       try {
-        if (!this.apiKey) {
+        if (this.fallbackMode || !this.apiKey) {
           console.warn('OpenAI API key not configured, using fallback credit recommendations');
           return this.getFallbackCreditRecommendations(preferences);
         }
@@ -287,6 +303,7 @@ class AIService {
         return this.parseCreditRecommendations(response.choices[0].message.content, availableCredits);
       } catch (error) {
         console.error('Credit recommendation failed:', error);
+        this.fallbackMode = true;
         return this.getFallbackCreditRecommendations(preferences);
       }
     });
@@ -305,7 +322,7 @@ class AIService {
   }> {
     return this.queueRequest(async () => {
       try {
-        if (!this.apiKey) {
+        if (this.fallbackMode || !this.apiKey) {
           console.warn('OpenAI API key not configured, using fallback behavior analysis');
           return this.getFallbackBehaviorAnalysis();
         }
@@ -339,6 +356,7 @@ class AIService {
         return this.parseBehaviorAnalysis(response.choices[0].message.content);
       } catch (error) {
         console.error('Behavior analysis failed:', error);
+        this.fallbackMode = true;
         return this.getFallbackBehaviorAnalysis();
       }
     });
@@ -347,11 +365,13 @@ class AIService {
   // Private helper methods
   private async callAI(payload: any): Promise<any> {
     if (!this.apiKey) {
-      throw new AppError('OpenAI API key not configured. Please check your environment variables.', 500);
+      this.fallbackMode = true;
+      throw new AppError('OpenAI API key not configured', 500);
     }
 
     if (!this.apiKey.startsWith('sk-')) {
-      throw new AppError('Invalid OpenAI API key format. API key should start with "sk-" or "sk-proj-".', 500);
+      this.fallbackMode = true;
+      throw new AppError('Invalid OpenAI API key format', 500);
     }
 
     try {
@@ -377,14 +397,19 @@ class AIService {
         }
 
         if (response.status === 401) {
+          this.fallbackMode = true;
           errorMessage = 'Invalid API key. Please check your VITE_OPENAI_API_KEY in the .env file.';
         } else if (response.status === 429) {
+          this.fallbackMode = true;
           errorMessage = 'OpenAI rate limit exceeded. Please wait a moment and try again. Your current plan may have usage limits.';
         } else if (response.status === 403) {
+          this.fallbackMode = true;
           errorMessage = 'OpenAI API access forbidden. Please check your API key permissions and billing status.';
         } else if (response.status === 404 && errorMessage.includes('model')) {
+          this.fallbackMode = true;
           errorMessage = `The AI model "${this.model}" is not available with your API key. Try using "gpt-3.5-turbo" instead.`;
         } else if (response.status >= 500) {
+          this.fallbackMode = true;
           errorMessage = 'OpenAI service is temporarily unavailable. Please try again later.';
         }
 
@@ -405,9 +430,11 @@ class AIService {
       
       // Network or other errors
       if (error instanceof TypeError && error.message.includes('fetch')) {
+        this.fallbackMode = true;
         throw new AppError('Network error: Unable to connect to OpenAI service. Please check your internet connection.', 500);
       }
       
+      this.fallbackMode = true;
       throw new AppError(`OpenAI service error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
     }
   }
@@ -574,6 +601,7 @@ class AIService {
 
   // Fallback methods for when AI is unavailable
   private getFallbackRecommendations(userProfile: any): AIRecommendation[] {
+    console.log('Using fallback recommendations for profile:', userProfile);
     return [
       {
         id: 'fallback-1',
@@ -742,6 +770,16 @@ class AIService {
         'Join local environmental community groups'
       ]
     };
+  }
+
+  // Reset fallback mode - useful for testing
+  public resetFallbackMode(): void {
+    this.fallbackMode = false;
+  }
+  
+  // Check if in fallback mode
+  public isInFallbackMode(): boolean {
+    return this.fallbackMode;
   }
 }
 
