@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import ErrorBoundary from './components/ErrorBoundary';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import Navigation from './components/Navigation';
 import Dashboard from './components/Dashboard';
 import CarbonCalculator from './components/CarbonCalculator';
