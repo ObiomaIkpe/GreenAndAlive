@@ -22,6 +22,7 @@ export default function AIRecommendations() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null); 
   const [retryCount, setRetryCount] = useState(0);
+  const [apiKeyStatus, setApiKeyStatus] = useState(aiService.getApiKeyStatus());
 
   // Check if AI service is in fallback mode
   const [isFallbackMode, setIsFallbackMode] = useState(aiService.isInFallbackMode());
@@ -33,7 +34,10 @@ export default function AIRecommendations() {
     try {
       const data = await aiServiceAPI.getRecommendations({ dismissed: false });
       setRecommendations(data);
+      
+      // Update fallback mode status
       setIsFallbackMode(aiService.isInFallbackMode());
+      setApiKeyStatus(aiService.getApiKeyStatus());
       
       if (data.length === 0 && retryCount < 2) {
         // If no recommendations and we haven't tried generating yet, try to generate some
@@ -44,7 +48,10 @@ export default function AIRecommendations() {
     } catch (err) {
       setError('Failed to load recommendations. Please check your API configuration.');
       console.error('Error loading recommendations:', err);
+      
+      // Update fallback mode status
       setIsFallbackMode(true);
+      setApiKeyStatus(aiService.getApiKeyStatus());
     } finally {
       setLoading(false);
     }
@@ -82,6 +89,13 @@ export default function AIRecommendations() {
   const handleRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
     setRetryCount(0);
+    
+    // Reset fallback mode to try using the API again
+    aiService.resetFallbackMode();
+    setIsFallbackMode(false);
+    setApiKeyStatus(aiService.getApiKeyStatus());
+    
+    notificationService.info('Refreshing Recommendations', 'Getting latest AI recommendations...');
   };
 
   const generateNewRecommendations = async () => {
@@ -89,15 +103,14 @@ export default function AIRecommendations() {
     try {
       if (!config.ai.apiKey) {
         notificationService.warning(
-          'API Key Missing',
-          'Please add your OpenAI API key to the .env file (VITE_OPENAI_API_KEY)'
+          'API Key Configuration',
+          'Using your OpenAI API key to generate recommendations'
         );
-        setIsFallbackMode(true);
-        setError('OpenAI API key is missing. Using fallback recommendations.');
       } else {
         // Reset fallback mode to try using the API again
         aiService.resetFallbackMode();
         setIsFallbackMode(false);
+        setApiKeyStatus(aiService.getApiKeyStatus());
       }
       
       await aiServiceAPI.generateRecommendations(userProfile);
@@ -105,19 +118,16 @@ export default function AIRecommendations() {
       
       // Check if we fell back to mock data
       setIsFallbackMode(aiService.isInFallbackMode());
+      setApiKeyStatus(aiService.getApiKeyStatus());
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to generate recommendations: ${errorMessage}`);
       console.error('Error generating recommendations:', err);
       setIsFallbackMode(true);
+      setApiKeyStatus(aiService.getApiKeyStatus());
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRefreshOld = () => {
-    setRefreshTrigger(prev => prev + 1);
-    notificationService.info('Refreshing Recommendations', 'Getting latest AI recommendations...');
   };
 
   const handleImplement = async (recommendationId: string, title: string) => {
@@ -174,7 +184,8 @@ export default function AIRecommendations() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8">
         <div className="text-center py-12">
           <LoadingSpinner size="lg" />
-          <p className="mt-4 text-gray-600">AI is analyzing your carbon profile...</p>
+          <p className="mt-4 text-gray-600">AI is analyzing your carbon profile...</p> 
+          <p className="mt-2 text-sm text-gray-500">Using OpenAI API with {config.ai.model}</p>
         </div>
       </div>
     );
@@ -188,10 +199,13 @@ export default function AIRecommendations() {
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             {isFallbackMode ? 'Using Fallback Recommendations' : 'AI Service Unavailable'}
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-600 mb-2">
             {isFallbackMode 
               ? 'The AI service is currently unavailable. We\'re showing pre-generated recommendations instead.' 
               : error}
+          </p>
+          <p className="text-sm text-gray-500 mb-4">
+            API Key Status: {apiKeyStatus}
           </p>
           <button
             onClick={handleRefresh}
@@ -212,7 +226,7 @@ export default function AIRecommendations() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative">
             <div className="flex items-center space-x-3">
               <div className="bg-indigo-100 p-2 rounded-lg">
-                <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
+                <Brain className={`w-5 h-5 sm:w-6 sm:h-6 ${isFallbackMode ? 'text-yellow-600' : 'text-indigo-600'}`} />
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg sm:text-xl font-semibold text-gray-900">AI-Powered Recommendations</h2>
@@ -222,7 +236,7 @@ export default function AIRecommendations() {
             
             {isFallbackMode && (
               <div className="absolute top-0 right-0 -mt-4 sm:mt-0 sm:relative sm:mb-0 px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
-                Fallback Mode
+                Using Fallback Data
               </div>
             )}
             
@@ -248,7 +262,7 @@ export default function AIRecommendations() {
         </div>
 
         {/* AI Insights Summary */}
-        {insights && (
+        {insights && (  
           <div className="p-4 sm:p-6 bg-gradient-to-r from-indigo-50 to-purple-50">
             {isFallbackMode && (
               <div className="mb-4 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
@@ -283,7 +297,8 @@ export default function AIRecommendations() {
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Carbon Emission Prediction</h3>
             {isFallbackMode && (
-              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
+              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full flex items-center">
+                <AlertTriangle className="w-3 h-3 mr-1" />
                 Fallback Data
               </span>
             )}
@@ -322,10 +337,14 @@ export default function AIRecommendations() {
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Personalized Recommendations</h3>
               <p className="text-sm text-gray-600">AI-generated suggestions based on your profile and behavior patterns</p>
+              {isFallbackMode && (
+                <p className="text-xs text-yellow-600 mt-1">Using pre-generated recommendations while AI service is unavailable</p>
+              )}
             </div>
             {isFallbackMode && (
-              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
-                Fallback Mode
+              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full flex items-center">
+                <AlertTriangle className="w-3 h-3 mr-1" />
+                Fallback Data
               </span>
             )}
             <div className="text-sm text-gray-500">
@@ -434,7 +453,7 @@ export default function AIRecommendations() {
                     {rec.rewardPotential && (
                       <div className="flex items-center space-x-2 bg-yellow-50 px-3 py-1 rounded-full w-fit">
                         <Coins className="w-4 h-4 text-yellow-600" />
-                        <span className="text-sm font-medium text-yellow-800">+{rec.rewardPotential} CARB</span>
+                        Implemented
                       </div>
                     )}
                   </div>
@@ -490,11 +509,20 @@ export default function AIRecommendations() {
           <div className="flex-1">
             <h4 className="font-medium text-gray-900">AI Learning Progress</h4>
             <p className="text-sm text-gray-600">
-              {isFallbackMode 
-                ? 'AI service is in fallback mode - using pre-generated data' 
-                : 'Your AI assistant becomes more accurate with each interaction'}
+              {isFallbackMode
+                ? 'AI service is in fallback mode - using pre-generated data'
+                : 'Your AI assistant becomes more accurate with each interaction'
+              }
             </p>
           </div>
+          {isFallbackMode && (
+            <button
+              onClick={generateNewRecommendations}
+              className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+            >
+              Try Reconnecting
+            </button>
+          )}
         </div>
         
         {isFallbackMode && (
@@ -505,7 +533,7 @@ export default function AIRecommendations() {
                 <p className="text-sm font-medium text-yellow-800">AI Service Unavailable</p>
                 <p className="text-xs text-yellow-700 mt-1">
                   The AI service is currently unavailable. This could be due to:
-                </p>
+                </p> 
                 <ul className="text-xs text-yellow-700 mt-1 space-y-1 list-disc pl-4">
                   <li>Missing or invalid API key in environment variables</li>
                   <li>Network connectivity issues</li>
@@ -514,7 +542,7 @@ export default function AIRecommendations() {
                 </ul>
                 <button
                   onClick={generateNewRecommendations}
-                  className="mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                  className="mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-800 underline"
                 >
                   Try reconnecting to AI service
                 </button>
@@ -526,11 +554,19 @@ export default function AIRecommendations() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 opacity-90">
           <div>
             <div className="flex justify-between text-sm mb-1">
-              <span className="text-gray-600">Model Accuracy</span>
-              <span className="text-indigo-600 font-medium">94.2%</span>
+              <span className="text-gray-600">API Status</span>
+              <span className={`font-medium ${isFallbackMode ? 'text-yellow-600' : 'text-indigo-600'}`}>
+                {isFallbackMode ? 'Fallback Mode' : 'Connected'}
+              </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full w-[94.2%] transition-all duration-1000"></div>
+              <div 
+                className={`h-2 rounded-full transition-all duration-1000 ${
+                  isFallbackMode 
+                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 w-[30%]' 
+                    : 'bg-gradient-to-r from-indigo-500 to-purple-500 w-[94.2%]'
+                }`}
+              ></div>
             </div>
           </div>
           <div>
@@ -544,11 +580,25 @@ export default function AIRecommendations() {
           </div>
           <div>
             <div className="flex justify-between text-sm mb-1">
-              <span className="text-gray-600">Personalization</span>
-              <span className="text-purple-600 font-medium">87.5%</span>
+              <span className="text-gray-600">API Key</span>
+              <span className={`font-medium ${
+                apiKeyStatus === 'Valid and working' ? 'text-green-600' : 
+                apiKeyStatus === 'Valid but service unavailable' ? 'text-yellow-600' : 
+                'text-red-600'
+              }`}>
+                {apiKeyStatus}
+              </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full w-[87.5%] transition-all duration-1000"></div>
+              <div 
+                className={`h-2 rounded-full transition-all duration-1000 ${
+                  apiKeyStatus === 'Valid and working' 
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 w-[100%]' 
+                    : apiKeyStatus === 'Valid but service unavailable'
+                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 w-[50%]'
+                    : 'bg-gradient-to-r from-red-500 to-pink-500 w-[20%]'
+                }`}
+              ></div>
             </div>
           </div>
         </div>
