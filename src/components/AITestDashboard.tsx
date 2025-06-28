@@ -1,12 +1,9 @@
-import React, { useState } from 'react';
-import { Brain, CheckCircle, XCircle, AlertTriangle, Loader, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Brain, CheckCircle, XCircle, AlertTriangle, Loader, Clock, AlertCircle } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { openaiService } from '../services/openaiService';
 import { aiServiceAPI } from '../services/aiServiceAPI';
-import { openaiService } from '../services/openaiService';
-import { aiServiceAPI } from '../services/aiServiceAPI';
 import { config } from '../config/environment';
-import { notificationService } from '../services/notificationService';
 import { notificationService } from '../services/notificationService';
 
 interface TestResult {
@@ -14,25 +11,11 @@ interface TestResult {
   status: 'pending' | 'success' | 'error';
   message: string;
   duration?: number;
+}
+
 export default function AITestDashboard() {
   const [tests, setTests] = useState<TestResult[]>([]);
   const [isRunning, setIsRunning] = useState(false); 
-  const [fallbackMode, setFallbackMode] = useState(aiService.isInFallbackMode());
-  const [apiKeyMasked, setApiKeyMasked] = useState<string>('');
-
-  useEffect(() => {
-    // Mask the API key for display
-    if (config.ai.apiKey) {
-      const key = config.ai.apiKey;
-      if (key.startsWith('sk-')) {
-        setApiKeyMasked(`sk-...${key.slice(-4)}`);
-      } else {
-        setApiKeyMasked('Invalid format');
-      }
-    } else {
-      setApiKeyMasked('Not configured');
-    }
-  }, []);
   const [fallbackMode, setFallbackMode] = useState(aiService.isInFallbackMode());
   const [apiKeyMasked, setApiKeyMasked] = useState<string>('');
 
@@ -67,10 +50,6 @@ export default function AITestDashboard() {
     // Reset fallback mode to give the API another chance
     aiService.resetFallbackMode();
     setFallbackMode(false);
-    
-    // Reset fallback mode to give the API another chance
-    aiService.resetFallbackMode();
-    setFallbackMode(false);
 
     // Test 1: Configuration Check
     updateTest('Configuration', 'pending', 'Checking AI configuration...');
@@ -79,47 +58,16 @@ export default function AITestDashboard() {
     const apiKey = config.ai.apiKey;
     
     if (!apiKey) {
-    
-    if (!apiKey) {
       updateTest('Configuration', 'error', 'OpenAI API key not found in environment variables');
       setFallbackMode(true);
     } else if (apiKey.startsWith('sk-') && apiKey.length > 20) {
       updateTest('Configuration', 'success', `API key format appears valid (${apiKeyMasked})`);
-      updateTest('Configuration', 'success', `API key format appears valid (${apiKeyMasked})`);
     } else {
-      updateTest('Configuration', 'error', `API key format appears invalid (${apiKey.substring(0, 5)}...)`);
       updateTest('Configuration', 'error', `API key format appears invalid (${apiKey.substring(0, 5)}...)`);
       setFallbackMode(true);
     }
 
     // Add delay between tests to respect rate limits
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Test 2: OpenAI Connection Test
-    updateTest('API Connection', 'pending', 'Testing connection to OpenAI API...');
-    const connectionStartTime = Date.now();
-    
-    try {
-      const connectionResult = await openaiService.testConnection();
-      const duration = Date.now() - connectionStartTime;
-      
-      if (connectionResult.success) {
-        updateTest('API Connection', 'success', 
-          `Connected to OpenAI API successfully`, duration);
-      } else {
-        updateTest('API Connection', 'error', 
-          connectionResult.message, duration);
-        setFallbackMode(true);
-      }
-    } catch (error) {
-      const duration = Date.now() - connectionStartTime;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      updateTest('API Connection', 'error', 
-        `Failed: ${errorMessage}`, duration);
-      setFallbackMode(true);
-    }
-    
-    // Add delay between tests
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Test 2: OpenAI Connection Test
@@ -156,7 +104,6 @@ export default function AITestDashboard() {
     try {
       // Use the API service that's used in the actual application
       const recommendations = await aiServiceAPI.generateRecommendations({
-      const recommendations = await aiServiceAPI.generateRecommendations({
         carbonFootprint: 25.5,
         location: 'San Francisco, CA',
         lifestyle: ['urban', 'tech_worker'],
@@ -170,10 +117,8 @@ export default function AITestDashboard() {
         updateTest('AI Recommendations', 'success',
           `Generated ${recommendations.length} recommendations successfully${aiService.isInFallbackMode() ? ' (using fallback)' : ''}`, duration);
         setFallbackMode(aiService.isInFallbackMode());
-        setFallbackMode(aiService.isInFallbackMode());
       } else {
         updateTest('AI Recommendations', 'error', 'No recommendations returned');
-        setFallbackMode(true);
         setFallbackMode(true);
       }
     } catch (error) {
@@ -184,11 +129,9 @@ export default function AITestDashboard() {
         updateTest('AI Recommendations', 'error', 
           'Rate limit exceeded. Please wait a few minutes before testing again.', duration);
         setFallbackMode(true);
-        setFallbackMode(true);
       } else {
         updateTest('AI Recommendations', 'error', 
           `Failed: ${errorMessage}`, duration);
-        setFallbackMode(true);
         setFallbackMode(true);
       }
     }
@@ -213,14 +156,11 @@ export default function AITestDashboard() {
         
         if (prediction && prediction.predictedEmissions) {
           const fallbackNote = aiService.isInFallbackMode() ? ' (using fallback)' : '';
-          const fallbackNote = aiService.isInFallbackMode() ? ' (using fallback)' : '';
           updateTest('Carbon Predictions', 'success', 
             `Predicted ${prediction.predictedEmissions.toFixed(1)} tons CO₂${fallbackNote}`, duration);
           setFallbackMode(aiService.isInFallbackMode());
-          setFallbackMode(aiService.isInFallbackMode());
         } else {
           updateTest('Carbon Predictions', 'error', 'Invalid prediction response');
-          setFallbackMode(true);
           setFallbackMode(true);
         }
       } catch (error) {
@@ -229,11 +169,9 @@ export default function AITestDashboard() {
         updateTest('Carbon Predictions', 'error', 
           `Failed: ${errorMessage}`, duration);
         setFallbackMode(true);
-        setFallbackMode(true);
       }
     } else {
       updateTest('Carbon Predictions', 'error', 'Skipped due to previous test failure');
-      setFallbackMode(true);
       setFallbackMode(true);
     }
 
@@ -256,21 +194,11 @@ export default function AITestDashboard() {
       setFallbackMode(false);
     }
     
-    const apiKey = config.ai.apiKey;
-    
-    // Reset fallback mode to give the API another chance
-    if (apiKey && apiKey.startsWith('sk-')) {
-      aiService.resetFallbackMode();
-      setFallbackMode(false);
-    }
-    
     if (!apiKey) {
       updateTest('Quick Configuration Test', 'error', 'OpenAI API key not found');
       setFallbackMode(true);
-      setFallbackMode(true);
     } else if (!apiKey.startsWith('sk-')) {
       updateTest('Quick Configuration Test', 'error', 'Invalid API key format');
-      setFallbackMode(true);
       setFallbackMode(true);
     } else {
       // Try a quick connection test
@@ -286,28 +214,9 @@ export default function AITestDashboard() {
         updateTest('Quick Configuration Test', 'error', `API connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         setFallbackMode(true);
       }
-      try {
-        const result = await openaiService.testConnection();
-        if (result.success) {
-          updateTest('Quick Configuration Test', 'success', 'Configuration looks good! Ready for AI features.');
-        } else {
-          updateTest('Quick Configuration Test', 'error', `API connection failed: ${result.message}`);
-          setFallbackMode(true);
-        }
-      } catch (error) {
-        updateTest('Quick Configuration Test', 'error', `API connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        setFallbackMode(true);
-      }
     }
 
     setIsRunning(false);
-  };
-
-  const fixApiKey = () => {
-    notificationService.info(
-      'API Key Configuration',
-      'To fix the API key, add your OpenAI API key to the .env file as VITE_OPENAI_API_KEY=sk-your-key-here'
-    );
   };
 
   const fixApiKey = () => {
@@ -356,11 +265,6 @@ export default function AITestDashboard() {
               <h2 className="text-xl font-semibold text-gray-900">AI Integration Test Dashboard</h2>
               <p className="text-sm text-gray-600">Verify AI services are working correctly</p>
             </div>
-            {fallbackMode && (
-              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
-                Fallback Mode Active
-              </span>
-            )}
             {fallbackMode && (
               <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
                 Fallback Mode Active
@@ -446,21 +350,6 @@ export default function AITestDashboard() {
           </div>
         )}
         
-        {fallbackMode && (
-          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div className="flex items-start space-x-2">
-              <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-yellow-800">AI Service in Fallback Mode</p>
-                <p className="text-xs text-yellow-700 mt-1">
-                  The system is currently using pre-generated responses instead of live AI. This provides continuity 
-                  when the AI service is unavailable.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="p-4 border border-gray-200 rounded-lg">
             <div className="flex items-center justify-between">
@@ -520,15 +409,10 @@ export default function AITestDashboard() {
                 {fallbackMode && (
                   <span className="text-xs text-yellow-600">(Fallback)</span>
                 )}
-                {fallbackMode && (
-                  <span className="text-xs text-yellow-600">(Fallback)</span>
-                )}
               </div>
             </div>
             <p className="text-xs text-gray-500 mt-1">
               {config.features.aiRecommendations 
-                ? fallbackMode ? 'Enabled (Fallback Mode)' : 'Enabled' 
-                : 'Disabled'}
                 ? fallbackMode ? 'Enabled (Fallback Mode)' : 'Enabled' 
                 : 'Disabled'}
             </p>
@@ -575,17 +459,11 @@ export default function AITestDashboard() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             {fallbackMode ? 'Troubleshooting Steps' : 'Next Steps'}
           </h3>
-            {fallbackMode ? 'Troubleshooting Steps' : 'Next Steps'}
-          </h3>
           
           {!fallbackMode && errorCount === 0 ? (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center space-x-2">
-                config.ai.apiKey.startsWith('sk-') ? (
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                ) : (
-                  <XCircle className="w-5 h-5 text-red-600" />
-                )
+                <CheckCircle className="w-5 h-5 text-green-600" />
                 <span className="font-medium text-green-900">All tests passed!</span>
               </div>
               <p className="text-sm text-green-800 mt-2">
@@ -605,8 +483,6 @@ export default function AITestDashboard() {
                 <span className="font-medium text-yellow-900">
                   {fallbackMode ? 'AI Service in Fallback Mode' : 'Some tests failed'}
                 </span>
-                  {fallbackMode ? 'AI Service in Fallback Mode' : 'Some tests failed'}
-                </span>
               </div> 
               <p className="text-sm text-yellow-800 mt-2">
                 {fallbackMode 
@@ -623,23 +499,13 @@ export default function AITestDashboard() {
               <div className="mt-4">
                 <button
                   onClick={runQuickTest}
-              <ul className="text-sm text-yellow-800 mt-2 space-y-1">
-                <li>• Add a valid OpenAI API key to your .env file (VITE_OPENAI_API_KEY)</li>
-                <li>• Check your OpenAI account for sufficient credits</li>
-                <li>• Verify network connectivity to OpenAI's servers</li>
-                <li>• If rate limited, wait 2-3 minutes before trying again</li>
-                <li>• Consider using a different model (e.g., gpt-3.5-turbo instead of gpt-4)</li>
-                {fallbackMode 
-              <div className="mt-4">
-                <button
-                  onClick={runQuickTest}
                   className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
                 >
                   Run Quick Test Again
                 </button>
               </div>
-                  ? 'The application is using pre-generated responses instead of live AI. To fix this:' 
-                  : 'Common solutions for AI service issues:'}
+            </div>
+          )}
         </div>
       )}
     </div>
